@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "tcpechoserver.h": "c",
+        "stdio.h": "c",
+        "socket.h": "c",
+        "stdlib.h": "c",
+        "unistd.h": "c",
+        "pthread.h": "c",
+        "tcpfunctions.h": "c",
+        "inet.h": "c",
+        "in.h": "c"
+    }
+}
