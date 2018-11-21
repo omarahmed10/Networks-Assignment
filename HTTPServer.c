@@ -46,58 +46,38 @@ void *ThreadMain(void *threadArgs)
 
 void HandleHTTPClient(int clntSocket)
 {
-    // char **header = (char**)calloc(10,sizeof(char *));
-    // memset(header,0,sizeof(header));
-    // int requestLen = receiveMessageFromSocket(clntSocket, header);
-    // for(int i = 0 ; i < requestLen; i++){
-    //     printf("%s\n",header[i]);
-    // }
-    // char *GETLine[3];
-    // split_string(header[0]," ",GETLine);
-    FILE *fp = openFile("/ServerData/home.html");
+    struct Req_Head requestHead = receiveRequestHeaderFromSocket(clntSocket);
+    if(requestHead.is_GET == 1){
+        FILE *fp = openFile(requestHead.file_path,"r");
+        if (fp == NULL){
+            close(clntSocket);
+            return;
+        }
+        fseek(fp, 0L, SEEK_END);
+        int file_size = ftell(fp);
+        rewind(fp);
+        
+        char responseHeader[MAXSIZE];
+        sprintf(responseHeader, 
+        "HTTP/1.1 200 OK\r\nDate: ...\r\nServer: Apache/2.0.45\r\nContent-length: %d\r\nContent-Type: text/html\r\n\r\n"
+        , file_size);
+        printf("Sending response header \n");
+        sendMessageThroughSocet(clntSocket, responseHeader, strlen(responseHeader));
 
-    char **bodyBuff = (char**)calloc(10,sizeof(char *));
-    memset(bodyBuff,0,sizeof(bodyBuff));
+        printf("Sending response body \n");
+        char buffer[MAXSIZE];
+        while(fgets(buffer, MAXSIZE, fp) != NULL){
+            int responseLen = strlen(buffer); /* Determine input length */
+            /* Send the string to the server */
+            if (send(clntSocket, buffer, responseLen, 0) != responseLen)
+                DieWithError("send() sent a different number of bytes than expected");
+        }
+        fclose(fp);
+    }else{
+        
+    }
     
-    int bodyLen = 0,bodySize = 0;
-    printf("test1\n");
-    bodyBuff[bodyLen] = (char*)malloc(MAXSIZE*sizeof(char));
-    while(fgets(bodyBuff[bodyLen], 255, fp) != NULL){
-        bodySize += strlen(bodyBuff[bodyLen]);
-        printf("getting line :%s",bodyBuff[bodyLen]);
-        bodyLen++;
-        bodyBuff[bodyLen] = (char*)malloc(MAXSIZE*sizeof(char));
-    }
-    fclose(fp);
-    // char *bodyData[7] = {
-    //     "HTTP/1.1 200 OK\r\n",
-    //     "Date: ...\r\n",
-    //     "Server: Apache/2.0.45\r\n",
-    //     "Last-Modified: ...\r\n",
-    //     "KSDAFASODFMASDFASDF\n",
-    //     "Content-Type: text/html\r\n",
-    //     "\r\n"
-    // };
-    char CONTENT_LEN_str[80];
-    sprintf(CONTENT_LEN_str, "Content-length: %d\r\n", bodySize);
-    char *raw_request[7] = {
-        "HTTP/1.1 200 OK\r\n",
-        "Date: ...\r\n",
-        "Server: Apache/2.0.45\r\n",
-        "Last-Modified: ...\r\n",
-        CONTENT_LEN_str,
-        "Content-Type: text/html\r\n",
-        "\r\n"
-    };
-    int headerSize = 0;
-    for(int i = 0; i < 7 ;i++){
-        headerSize += strlen(raw_request[i]);
-    }
 
-    printf("Sending response \n");
-    sendMessageThroughSocet(clntSocket, raw_request, headerSize);
-    printf("Sending response \n");
-    sendMessageThroughSocet(clntSocket, bodyBuff, bodyLen);
     printf("closing \n");
     close(clntSocket);
 }

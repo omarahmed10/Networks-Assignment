@@ -2,11 +2,11 @@
 
 #define MAXSIZE 255 /* Maximum Buffer size */
 
-FILE *openFile(char* localPath){
+FILE *openFile(char* localPath, char *operation){
     char cwd[MAXSIZE];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         FILE *fp;
-        fp = fopen(strcat(cwd, localPath), "r");
+        fp = fopen(strcat(cwd, localPath), operation);
         if(fp == NULL) {
             perror("Error opening file");
             return NULL;
@@ -32,7 +32,6 @@ struct Command parse_command(char *command){
 }
 
 int split_string(char *string, const char *delm,char **strings){
-    int size = 2;
     int i = 0;
     /* get the first token */
     strings[i] = strtok(string, delm);
@@ -40,10 +39,46 @@ int split_string(char *string, const char *delm,char **strings){
     while( strings[i] != NULL ) {
         i++;
         strings[i] = strtok(NULL, delm);
-        // if (i == size-1){
-        //     size *= 2;
-        //     strings = (char **)realloc(strings,size*sizeof(char *));
-        // }
     }
     return i;
+}
+
+char *str_find_next(char *string, char *key, char *key2){
+    /* get the first token */
+    char *token = strtok(string, " \n");
+    /* walk through other strings */
+    while( token != NULL ) {
+        if (strcmp(token,key) == 0 || strcmp(token,key2) == 0 ){
+            return strtok(NULL, " \n");
+        }
+        token = strtok(NULL, " \n");
+    }
+    return NULL;
+}
+short str_exist(char *string, char *key, char *key2){
+    /* get the first token */
+    char *token = strtok(string, " \n");
+    /* walk through other strings */
+    while( token != NULL ) {
+        if (strcmp(token,key) == 0){
+            return 1;
+        }
+        if (strcmp(token,key2) == 0){
+            return 2;
+        }
+        token = strtok(NULL, " \n");
+    }
+    return 0;
+}
+bool str_find_empty_line(char *string){
+    /* get the first token */
+    char *token = strtok(string, "\n");
+    /* walk through other strings */
+    while( token != NULL ) {
+        if (strlen(token) == 1 && token[0] == 13){
+            return true;
+        }
+        token = strtok(NULL, "\n");
+    }
+    return false;
 }

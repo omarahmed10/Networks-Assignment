@@ -68,38 +68,109 @@ struct sockaddr_in ConnectToTCPServer(int clientSock, char *servlP, unsigned sho
     return servAddr;
 }
 
-void sendMessageThroughSocet(int sock, char** message, int len){
-    for(int i = 0; i < len; i++){
-        int requestLen = strlen(message[i]); /* Determine input length */
-        /* Send the string to the server */
-        if (send(sock, message[i], requestLen, 0) != requestLen)
-            DieWithError("send() sent a different number of bytes than expected");
-    }
+void sendMessageThroughSocet(int sock, char* message, int len){
+    if (send(sock, message, len, 0) != len)
+        DieWithError("send() sent a different number of bytes than expected");
     printf("Done Sending\n");
 }
 
-int receiveMessageFromSocket(int sock, char** buff){
+void receiveResponseBodyFromSocket(int sock, FILE *outputFile){
     int recvMsgSize, recvMsgLine = 0;
-    buff[recvMsgLine] = (char *)malloc(MAXSIZE*sizeof(char));
-    if ((recvMsgSize = recv(sock, buff[recvMsgLine], MAXSIZE, 0)) <= 0)
+    char buffer[MAXSIZE];
+    memset(&buffer,0,MAXSIZE);
+    if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
         DieWithError("recv() failed") ;
-    printf("receving :%s",buff[recvMsgLine]);
+    buffer[recvMsgSize] = '\0';
+
     while (recvMsgSize > 0) {
-        if (buff[recvMsgLine][recvMsgSize-1] == '\n' && buff[recvMsgLine][recvMsgSize-2] == '\r'){
-            recvMsgLine++;
+        fprintf(outputFile,"%s",buffer);
+        /* See if there is more data to receive */
+        memset(&buffer,0,MAXSIZE);
+        if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
+            DieWithError("recv() failed") ;
+        buffer[recvMsgSize] = '\0';
+    }
+}
+
+void receiveResponseFromSocket(int sock, FILE *outputFile){
+    int recvMsgSize;
+    char buffer[MAXSIZE];
+    memset(&buffer,0,MAXSIZE);
+    if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
+        DieWithError("recv() failed") ;
+    buffer[recvMsgSize] = '\0';
+    int status = 0,len = 0;
+    bool bodyStart = false;
+    while (recvMsgSize > 0) {
+        if(!bodyStart){
+            char buff_cpy[MAXSIZE];
+            strcpy(buff_cpy,buffer);
+            status = atoi(str_find_next(buff_cpy,"HTTP/1.1",""));
+            strcpy(buff_cpy,buffer);
+            len = atoi(str_find_next(buff_cpy, "Content-length:",""));
+            
+            strcpy(buff_cpy,buffer);
+            if(!len || status == 404){/* incase no body or status 404 found 
+                then we have to terminate when empty line found in header. */
+                break;
+            }else{
+                char **strings = (char **)malloc(MAXSIZE*sizeof(char *));
+                int string_count = split_string(buffer, "\n",strings);
+                for(int i = 0 ;i < string_count;i++){
+                    if(!bodyStart && strlen(strings[i]) == 1 && strings[i][0] == 13){
+                        bodyStart = true;
+                    }else if (bodyStart){
+                        fprintf(outputFile,"%s",strings[i]);
+                    }else{
+                        printf("%s\n",strings[i]);
+                    }
+                }
+            }
+        }else{
+            fprintf(outputFile,"%s",buffer);
+        }
+
+        /* See if there is more data to receive */
+        memset(&buffer,0,MAXSIZE);
+        if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
+            DieWithError("recv() failed") ;
+        buffer[recvMsgSize] = '\0';
+    }
+}
+
+struct Req_Head receiveRequestHeaderFromSocket(int sock){
+    int recvMsgSize;
+    char buffer[MAXSIZE];
+    memset(&buffer,0,MAXSIZE);
+    if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
+        DieWithError("recv() failed") ;
+    buffer[recvMsgSize] = '\0';
+    char *filepath;
+    short OP = 0;
+    struct Req_Head req_Head;
+    memset(&req_Head,0,sizeof(req_Head));
+    while (recvMsgSize > 0) {
+        printf("%s",buffer);
+        char buff_cpy[MAXSIZE];
+        strcpy(buff_cpy,buffer);
+        if(filepath == NULL){
+            filepath = str_find_next(buff_cpy,"GET","POST");
+            strcpy(buff_cpy,buffer);
+            OP = str_exist(buff_cpy,"GET","POST");
+        }
+        if (str_find_empty_line(buffer)){
             break;
         }
-        recvMsgLine++;
         /* See if there is more data to receive */
-        buff[recvMsgLine] = (char *)malloc(MAXSIZE*sizeof(char));
-        if ((recvMsgSize = recv(sock, buff[recvMsgLine], MAXSIZE, 0)) <= 0)
+        memset(&buffer,0,MAXSIZE);
+        if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
             DieWithError("recv() failed") ;
+        buffer[recvMsgSize] = '\0';
     }
-    char *receivedMsg = (char*)malloc(sizeof(char *));
-    for(int i = 0 ; i < recvMsgLine; i++){
-        receivedMsg = strcat(receivedMsg,buff[i]);
+    if (filepath != NULL){
+        strcpy(req_Head.file_path,filepath);
+        req_Head.is_GET = OP;
+        return req_Head;
     }
-    free(buff);
-    int string_count = split_string(receivedMsg,"\n",buff);
-    return string_count;
+    return req_Head;
 }
