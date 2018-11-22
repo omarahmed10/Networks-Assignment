@@ -137,26 +137,24 @@ void receiveResponseFromSocket(int sock, FILE *outputFile){
         buffer[recvMsgSize] = '\0';
     }
 }
-
-struct Req_Head receiveRequestHeaderFromSocket(int sock){
+short operation = 0;
+char *receiveRequestHeaderFromSocket(int sock){
+    operation = 0;
     int recvMsgSize;
     char buffer[MAXSIZE];
     memset(&buffer,0,MAXSIZE);
     if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
         DieWithError("recv() failed") ;
     buffer[recvMsgSize] = '\0';
+
     char *filepath;
-    short OP = 0;
-    struct Req_Head req_Head;
-    memset(&req_Head,0,sizeof(req_Head));
     while (recvMsgSize > 0) {
         printf("%s",buffer);
         char buff_cpy[MAXSIZE];
         strcpy(buff_cpy,buffer);
         if(filepath == NULL){
             filepath = str_find_next(buff_cpy,"GET","POST");
-            strcpy(buff_cpy,buffer);
-            OP = str_exist(buff_cpy,"GET","POST");
+            operation = str_exist(buff_cpy,"GET","POST");
         }
         if (str_find_empty_line(buffer)){
             break;
@@ -168,9 +166,9 @@ struct Req_Head receiveRequestHeaderFromSocket(int sock){
         buffer[recvMsgSize] = '\0';
     }
     if (filepath != NULL){
-        strcpy(req_Head.file_path,filepath);
-        req_Head.is_GET = OP;
-        return req_Head;
+        static char ans[MAXSIZE];
+        strcpy(ans,filepath);
+        return ans;
     }
-    return req_Head;
+    return NULL;
 }

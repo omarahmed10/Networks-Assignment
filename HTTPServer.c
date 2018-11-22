@@ -46,9 +46,10 @@ void *ThreadMain(void *threadArgs)
 
 void HandleHTTPClient(int clntSocket)
 {
-    struct Req_Head requestHead = receiveRequestHeaderFromSocket(clntSocket);
-    if(requestHead.is_GET == 1){
-        FILE *fp = openFile(requestHead.file_path,"r");
+    char *filePath = receiveRequestHeaderFromSocket(clntSocket);
+    if(operation == 1){
+        printf("file to open %s\n",filePath);
+        FILE *fp = openFile(filePath,"r");
         if (fp == NULL){
             close(clntSocket);
             return;

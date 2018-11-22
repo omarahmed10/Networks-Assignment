@@ -49,6 +49,7 @@ char *str_find_next(char *string, char *key, char *key2){
     /* walk through other strings */
     while( token != NULL ) {
         if (strcmp(token,key) == 0 || strcmp(token,key2) == 0 ){
+            printf("Found at %s\n",token);
             return strtok(NULL, " \n");
         }
         token = strtok(NULL, " \n");

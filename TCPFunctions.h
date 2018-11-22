@@ -24,13 +24,14 @@ struct Req_Head
     char * file_path;
     bool is_GET;
 };
+extern short operation;
 void DieWithError(char *errorMessage); /* Error handling function */
 int CreateTCPServerSocket(unsigned short port); /* Create TCP server socket */
 int AcceptTCPConnection(int servSock); /* Accept TCP connection request */
 struct sockaddr_in ConnectToTCPServer(int clientSock, char *servlP, unsigned short servPort);
 void sendMessageThroughSocet(int sock, char* message, int len);
 void receiveResponseFromSocket(int sock, FILE *outputFile); // for client in case of GET.
-struct Req_Head receiveRequestHeaderFromSocket(int sock);
+char *receiveRequestHeaderFromSocket(int sock);
 void receiveResponseBodyFromSocket(int sock, FILE *outputFile); // for server in case of POST.
 
 FILE *openFile(char* localPath, char *operation);
