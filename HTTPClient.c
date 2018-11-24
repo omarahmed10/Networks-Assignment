@@ -13,10 +13,10 @@ int main(int argc, char *argv[])
     servPort = atoi(argv[2]); /* Use given port, if any */
 
     FILE *commandFile = openFile(argv[3],"r");
+    /* Create a reliable, stream socket using TCP */
+    if ((client_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+        DieWithError(" socket () failed");
     while (fgets(command, 255, commandFile) != NULL){
-        /* Create a reliable, stream socket using TCP */
-        if ((client_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
-            DieWithError(" socket () failed");
         ConnectToTCPServer(client_sock, servlP, servPort);
 
         struct Command new_command = parse_command(command);
