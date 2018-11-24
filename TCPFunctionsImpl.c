@@ -75,7 +75,8 @@ void sendMessageThroughSocet(int sock, char* message, int len){
 }
 
 void receiveResponseBodyFromSocket(int sock, FILE *outputFile){
-    int recvMsgSize, recvMsgLine = 0;
+    int recvMsgSize;
+
     char buffer[MAXSIZE];
     memset(&buffer,0,MAXSIZE);
     if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
@@ -95,10 +96,12 @@ void receiveResponseBodyFromSocket(int sock, FILE *outputFile){
 void receiveResponseFromSocket(int sock, FILE *outputFile){
     int recvMsgSize;
     char buffer[MAXSIZE];
+
     memset(&buffer,0,MAXSIZE);
     if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
         DieWithError("recv() failed") ;
     buffer[recvMsgSize] = '\0';
+
     int status = 0,len = 0;
     bool bodyStart = false;
     while (recvMsgSize > 0) {
@@ -106,12 +109,20 @@ void receiveResponseFromSocket(int sock, FILE *outputFile){
             char buff_cpy[MAXSIZE];
             strcpy(buff_cpy,buffer);
             status = atoi(str_find_next(buff_cpy,"HTTP/1.1",""));
+            if(status == 404){
+                printf("%s",buffer);
+                break;
+            }
             strcpy(buff_cpy,buffer);
-            len = atoi(str_find_next(buff_cpy, "Content-length:",""));
-            
+            char *len_ch = str_find_next(buff_cpy, "Content-length:","");
+            if(len_ch != NULL){
+                len = atoi(len_ch);
+            }
+
             strcpy(buff_cpy,buffer);
-            if(!len || status == 404){/* incase no body or status 404 found 
+            if(!len){/* incase no body or status 404 found 
                 then we have to terminate when empty line found in header. */
+                printf("%s",buffer);
                 break;
             }else{
                 char **strings = (char **)malloc(MAXSIZE*sizeof(char *));
@@ -147,7 +158,7 @@ char *receiveRequestHeaderFromSocket(int sock){
         DieWithError("recv() failed") ;
     buffer[recvMsgSize] = '\0';
 
-    char *filepath;
+    char *filepath = NULL;
     while (recvMsgSize > 0) {
         printf("%s",buffer);
         char buff_cpy[MAXSIZE];

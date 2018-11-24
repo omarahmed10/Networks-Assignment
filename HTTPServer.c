@@ -48,9 +48,12 @@ void HandleHTTPClient(int clntSocket)
 {
     char *filePath = receiveRequestHeaderFromSocket(clntSocket);
     if(operation == 1){
-        printf("file to open %s\n",filePath);
         FILE *fp = openFile(filePath,"r");
         if (fp == NULL){
+            char *res = "HTTP/1.1 404 Not Found\r\n";
+            printf("sending not found\n");
+            sendMessageThroughSocet(clntSocket, res, strlen(res));
+            printf("closing \n");
             close(clntSocket);
             return;
         }
@@ -62,10 +65,8 @@ void HandleHTTPClient(int clntSocket)
         sprintf(responseHeader, 
         "HTTP/1.1 200 OK\r\nDate: ...\r\nServer: Apache/2.0.45\r\nContent-length: %d\r\nContent-Type: text/html\r\n\r\n"
         , file_size);
-        printf("Sending response header \n");
         sendMessageThroughSocet(clntSocket, responseHeader, strlen(responseHeader));
 
-        printf("Sending response body \n");
         char buffer[MAXSIZE];
         while(fgets(buffer, MAXSIZE, fp) != NULL){
             int responseLen = strlen(buffer); /* Determine input length */
@@ -75,7 +76,15 @@ void HandleHTTPClient(int clntSocket)
         }
         fclose(fp);
     }else{
-        
+        char *res = "HTTP/1.1 200 OK Message\r\n";
+        printf("sending OK.....\n");
+        sendMessageThroughSocet(clntSocket, res, strlen(res));
+
+        char new_file[MAXSIZE] = "/ServerData";
+        strcat(new_file, filePath);
+        FILE *uploadedFile = openFile(new_file,"w");
+        receiveResponseBodyFromSocket(clntSocket,uploadedFile);
+        if (uploadedFile != NULL) fclose(uploadedFile);
     }
     
 

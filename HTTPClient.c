@@ -24,16 +24,36 @@ int main(int argc, char *argv[])
 
         struct Command new_command = parse_command(command);
         if(new_command.is_post){
-            printf("POST command\n");
+            char requestHeader[MAXSIZE];
+            sprintf(requestHeader,
+            "POST %s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nUser-Agent: Mozilla/5.0\r\nAccept: text/html\r\n\r\n",
+            new_command.file_path,new_command.host_name);
+            sendMessageThroughSocet(client_sock, requestHeader, strlen(requestHeader));
+
+            receiveResponseFromSocket(client_sock,NULL); // receiving the OK message.
+
+            FILE *fp = openFile(new_command.file_path,"r");
+            char buffer[MAXSIZE];
+            while(fgets(buffer, MAXSIZE, fp) != NULL){
+                int responseLen = strlen(buffer); /* Determine input length */
+                /* Send the string to the server */
+                if (send(client_sock, buffer, responseLen, 0) != responseLen)
+                    DieWithError("send() sent a different number of bytes than expected");
+            }
+            fclose(fp);
+
         }else{
             char requestHeader[MAXSIZE];
             sprintf(requestHeader,
             "GET %s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nUser-Agent: Mozilla/5.0\r\nAccept: text/html\r\n\r\n",
             new_command.file_path,new_command.host_name);
             sendMessageThroughSocet(client_sock, requestHeader, strlen(requestHeader));
-            FILE *outputFP = openFile("/ClientData/home.html","w");
-            receiveResponseFromSocket(client_sock,outputFP);
-            fclose(outputFP);
+
+            char new_file[MAXSIZE] = "/ClientData";
+            strcat(new_file, new_command.file_path);
+            FILE *downloadFile = openFile(new_file,"w");
+            receiveResponseFromSocket(client_sock,downloadFile);
+            if (downloadFile != NULL) fclose(downloadFile);
         }
         printf("closing connection\n");
         close(client_sock);
