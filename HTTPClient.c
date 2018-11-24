@@ -10,12 +10,9 @@ int main(int argc, char *argv[])
     char *servlP = argv[1];
     char command[255];
 
-    if (argc == 3)
-        servPort = atoi(argv[2]); /* Use given port, if any */
-    else
-        servPort = 80; /* 80 is the well-known port for the HTTP service */
+    servPort = atoi(argv[2]); /* Use given port, if any */
 
-    FILE *commandFile = openFile("/inputs.txt","r");
+    FILE *commandFile = openFile(argv[3],"r");
     while (fgets(command, 255, commandFile) != NULL){
         /* Create a reliable, stream socket using TCP */
         if ((client_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
@@ -49,9 +46,11 @@ int main(int argc, char *argv[])
             new_command.file_path,new_command.host_name);
             sendMessageThroughSocet(client_sock, requestHeader, strlen(requestHeader));
 
-            char new_file[MAXSIZE] = "/ClientData";
-            strcat(new_file, new_command.file_path);
-            FILE *downloadFile = openFile(new_file,"w");
+            char download_file_final_path[MAXSIZE] = "ClientData/";
+            char **download_file_path = (char **)malloc(255*sizeof(char *));
+            int count = split_string(new_command.file_path,"/",download_file_path);
+            strcat(download_file_final_path,download_file_path[count-1]);
+            FILE *downloadFile = openFile(download_file_final_path,"w");
             receiveResponseFromSocket(client_sock,downloadFile);
             if (downloadFile != NULL) fclose(downloadFile);
         }

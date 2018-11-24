@@ -5,6 +5,7 @@
 FILE *openFile(char* localPath, char *operation){
     char cwd[MAXSIZE];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        strcat(cwd,"/");
         FILE *fp;
         fp = fopen(strcat(cwd, localPath), operation);
         if(fp == NULL) {

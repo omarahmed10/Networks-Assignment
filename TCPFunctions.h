@@ -19,11 +19,6 @@ struct Command
     char* host_name;
     unsigned short port;
 };
-struct Req_Head
-{
-    char * file_path;
-    bool is_GET;
-};
 extern short operation;
 void DieWithError(char *errorMessage); /* Error handling function */
 int CreateTCPServerSocket(unsigned short port); /* Create TCP server socket */

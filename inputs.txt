@@ -1,2 +1,2 @@
-GET /ServerData/home.html omar.rbna.yostor 5000
-POST /ClientData/home1.html omar.rbna.yostor
+GET /ServerData/image.jpeg omar.rbna.yostor
+POST /ClientData/home3.html omar.rbna.yostor

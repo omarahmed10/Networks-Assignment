@@ -48,7 +48,7 @@ void HandleHTTPClient(int clntSocket)
 {
     char *filePath = receiveRequestHeaderFromSocket(clntSocket);
     if(operation == 1){
-        FILE *fp = openFile(filePath,"r");
+        FILE *fp = openFile(filePath,"rb");
         if (fp == NULL){
             char *res = "HTTP/1.1 404 Not Found\r\n";
             printf("sending not found\n");
@@ -80,9 +80,11 @@ void HandleHTTPClient(int clntSocket)
         printf("sending OK.....\n");
         sendMessageThroughSocet(clntSocket, res, strlen(res));
 
-        char new_file[MAXSIZE] = "/ServerData";
-        strcat(new_file, filePath);
-        FILE *uploadedFile = openFile(new_file,"w");
+        char upload_file_final_path[MAXSIZE] = "ServerData/";
+        char **upload_file_path = (char **)malloc(255*sizeof(char *));
+        int count = split_string(filePath,"/",upload_file_path);
+        strcat(upload_file_final_path,upload_file_path[count-1]);
+        FILE *uploadedFile = openFile(upload_file_final_path,"w");
         receiveResponseBodyFromSocket(clntSocket,uploadedFile);
         if (uploadedFile != NULL) fclose(uploadedFile);
     }
