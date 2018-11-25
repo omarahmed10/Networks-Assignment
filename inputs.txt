@@ -1,2 +1,2 @@
-GET /ServerData/image.jpeg omar.rbna.yostor
-POST /ClientData/home3.html omar.rbna.yostor
+GET /ServerData/home2.html host.name
+POST /ClientData/home3.html host.name

@@ -91,6 +91,7 @@ void receiveResponseBodyFromSocket(int sock, FILE *outputFile){
             DieWithError("recv() failed") ;
         buffer[recvMsgSize] = '\0';
     }
+    printf("done receiving body\n");
 }
 
 void receiveResponseFromSocket(int sock, FILE *outputFile){
@@ -102,9 +103,11 @@ void receiveResponseFromSocket(int sock, FILE *outputFile){
         DieWithError("recv() failed") ;
     buffer[recvMsgSize] = '\0';
 
-    int status = 0,len = 0;
+    int totalRecv = 0;
+    int status = 0,len = INT16_MIN;
     bool bodyStart = false;
     while (recvMsgSize > 0) {
+        totalRecv += recvMsgSize;
         if(!bodyStart){
             char buff_cpy[MAXSIZE];
             strcpy(buff_cpy,buffer);
@@ -117,10 +120,12 @@ void receiveResponseFromSocket(int sock, FILE *outputFile){
             char *len_ch = str_find_next(buff_cpy, "Content-length:","");
             if(len_ch != NULL){
                 len = atoi(len_ch);
+            }else {
+                break;
             }
 
             strcpy(buff_cpy,buffer);
-            if(!len){/* incase no body or status 404 found 
+            if(len <= 0){/* incase no body or status 404 found 
                 then we have to terminate when empty line found in header. */
                 printf("%s",buffer);
                 break;
@@ -131,6 +136,7 @@ void receiveResponseFromSocket(int sock, FILE *outputFile){
                     if(!bodyStart && strlen(strings[i]) == 1 && strings[i][0] == 13){
                         bodyStart = true;
                     }else if (bodyStart){
+                        len -= strlen(strings[i]);
                         fprintf(outputFile,"%s",strings[i]);
                     }else{
                         printf("%s\n",strings[i]);
@@ -138,9 +144,11 @@ void receiveResponseFromSocket(int sock, FILE *outputFile){
                 }
             }
         }else{
+            len -= strlen(buffer);
             fprintf(outputFile,"%s",buffer);
         }
-
+        if(len > INT16_MIN && len <= 0)
+            break;
         /* See if there is more data to receive */
         memset(&buffer,0,MAXSIZE);
         if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
@@ -154,10 +162,9 @@ char *receiveRequestHeaderFromSocket(int sock){
     int recvMsgSize;
     char buffer[MAXSIZE];
     memset(&buffer,0,MAXSIZE);
-    if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
+    if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) <= 0)
         DieWithError("recv() failed") ;
     buffer[recvMsgSize] = '\0';
-
     char *filepath = NULL;
     while (recvMsgSize > 0) {
         printf("%s",buffer);

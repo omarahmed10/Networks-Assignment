@@ -16,9 +16,9 @@ int main(int argc, char *argv[])
     /* Create a reliable, stream socket using TCP */
     if ((client_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
         DieWithError(" socket () failed");
+    ConnectToTCPServer(client_sock, servlP, servPort);    
     while (fgets(command, 255, commandFile) != NULL){
-        ConnectToTCPServer(client_sock, servlP, servPort);
-
+        printf("command %s\n",command);
         struct Command new_command = parse_command(command);
         if(new_command.is_post){
             char requestHeader[MAXSIZE];
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
             receiveResponseFromSocket(client_sock,NULL); // receiving the OK message.
 
-            FILE *fp = openFile(new_command.file_path,"r");
+            FILE *fp = openFile(new_command.file_path,"rb");
             char buffer[MAXSIZE];
             while(fgets(buffer, MAXSIZE, fp) != NULL){
                 int responseLen = strlen(buffer); /* Determine input length */
@@ -50,13 +50,13 @@ int main(int argc, char *argv[])
             char **download_file_path = (char **)malloc(255*sizeof(char *));
             int count = split_string(new_command.file_path,"/",download_file_path);
             strcat(download_file_final_path,download_file_path[count-1]);
-            FILE *downloadFile = openFile(download_file_final_path,"w");
+            FILE *downloadFile = openFile(download_file_final_path,"wb");
             receiveResponseFromSocket(client_sock,downloadFile);
             if (downloadFile != NULL) fclose(downloadFile);
+            printf("Done downloading\n");
         }
-        printf("closing connection\n");
-        close(client_sock);
     }
-    
+    printf("closing connection\n");
+    close(client_sock);
     exit(0);
 }
