@@ -162,7 +162,7 @@ char *receiveRequestHeaderFromSocket(int sock){
     int recvMsgSize;
     char buffer[MAXSIZE];
     memset(&buffer,0,MAXSIZE);
-    if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) <= 0)
+    if ((recvMsgSize = recv(sock, buffer, MAXSIZE-1, 0)) < 0)
         DieWithError("recv() failed") ;
     buffer[recvMsgSize] = '\0';
     char *filepath = NULL;

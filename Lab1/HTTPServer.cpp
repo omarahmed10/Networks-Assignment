@@ -1,4 +1,4 @@
-#include "TCPFunctions.h"
+#include "TCPFunctions.hpp"
 #include <pthread.h>
 
 void *ThreadMain(void *arg);

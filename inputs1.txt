@@ -1,2 +1,0 @@
-GET /ServerData/home4.html omar.rbna.yostor
-POST /ClientData/home2.html omar.rbna.yostor
