@@ -17,12 +17,11 @@ StopAndWaitProtocol::StopAndWaitProtocol()
 
 int StopAndWaitProtocol::sendDatagram(char *p)
 {
-    printf("SENDING: %s\n", p);
-    std::cout << "size " << MIN(MAX_DATAGRAM_SIZE, strlen(p)) << std::endl;
+    cout << "sending " << p << " of size " << MIN(MAX_DATAGRAM_SIZE, strlen(p)) << endl;
     return c->send(p, MIN(MAX_DATAGRAM_SIZE, strlen(p)));
 }
 
-int StopAndWaitProtocol::sendMessage(char *line, unsigned int t)
+int StopAndWaitProtocol::sendMessage(char *line, unsigned int t, bool recvACK)
 {
     if (c == NULL)
     {
@@ -39,7 +38,7 @@ int StopAndWaitProtocol::sendMessage(char *line, unsigned int t)
         int sendlen = sendDatagram(line);
         current_byte = 0;
         /* listen */
-        if (acceptAcks())
+        if (!recvACK || acceptAcks())
         {
             current_byte = sendlen; // advance the line pointer when ack received.
             t -= sendlen;
@@ -55,7 +54,7 @@ bool StopAndWaitProtocol::acceptAcks()
 {
     bool didNotTimeout;
 
-    c->setTimeout(5);
+    c->setTimeout(10);
     didNotTimeout = listenForAck();
     c->setTimeout(0);
 
@@ -81,7 +80,7 @@ void StopAndWaitProtocol::sendAck(char *message)
     c->send(ACK_IDENT, strlen(buffer));
 }
 
-char *StopAndWaitProtocol::receiveMessage()
+char *StopAndWaitProtocol::receiveMessage(bool sendACK)
 {
     int datagram_seqn;
     char payload;
@@ -93,8 +92,10 @@ char *StopAndWaitProtocol::receiveMessage()
     std::cout << "blocking for receive" << std::endl;
     while (c->blocking_receive(buffer) != -1)
     {
-        std::cout << "sending ACK " << std::endl;
-        sendAck(buffer);
+        if (sendACK){
+            std::cout << "sending ACK " << std::endl;
+            sendAck(buffer);
+        }
     }
 
     return buffer;

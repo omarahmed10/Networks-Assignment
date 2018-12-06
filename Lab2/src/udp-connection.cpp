@@ -65,11 +65,13 @@ int UDPConnection::send(const void *message, unsigned int length)
 
 int UDPConnection::blocking_receive(char *return_buf)
 {
-	memset(&mesg , 0 , strlen(mesg));
+	memset(&mesg, 0, strlen(mesg));
 	datalen = recvfrom(sockfd, mesg, BUF_SIZE, 0, (struct sockaddr *)&servaddr, &addrlen);
-	std::cout << "received " << mesg << std::endl;
+	mesg[datalen] = '\0';
+	int port = ntohs(servaddr.sin_port);
+	string ip = inet_ntoa(servaddr.sin_addr);
+	cout << "received " << mesg << " of len=" << datalen << " from ip=" << ip << " port=" << port << endl;
 	memcpy(return_buf, mesg, BUF_SIZE);
-	//printf("UDPConnection receive got %i bytes\n", datalen);
 	return datalen;
 }
 

@@ -25,9 +25,9 @@ class StopAndWaitProtocol : public Protocol
     StopAndWaitProtocol();
 
     /* implementation of abstract Protocol::sendMessage */
-    virtual int sendMessage(char *line, unsigned int t);
+    virtual int sendMessage(char *line, unsigned int t, bool recvACK);
     /* implementation of abstract Protocol::receiveMessage */
-    virtual char *receiveMessage();
+    virtual char *receiveMessage(bool sendACK);
 };
 
 #endif

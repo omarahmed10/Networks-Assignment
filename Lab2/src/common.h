@@ -1,18 +1,20 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 
 #define DEFAULT_PORT 12346
-#define BUF_SIZE 4096
+#define BUF_SIZE 512
 
-#define MAX_DATAGRAM_SIZE 20
+#define MAX_DATAGRAM_SIZE 512
 #define DATAGRAM_IDENT "DATA"
 #define ACK_IDENT "ACK"
 
+using namespace std;
 /* Abstract connection that defines the necessary socket i/o functions.
 	Implementations may decide which transport layer protocol to use */
 class Connection {
@@ -48,10 +50,10 @@ public:
 
 	/* send a message of size t starting at the memory address pointed to by line
 		through the implememted protocol */
-	virtual int sendMessage(char* line, unsigned int t) = 0;
+	virtual int sendMessage(char* line, unsigned int t, bool recvACK) = 0;
 
 	/* receive a message through the implemented protocol */
-	virtual char* receiveMessage() = 0;
+	virtual char* receiveMessage(bool sendACK) = 0;
 };
 
 #endif

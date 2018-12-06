@@ -19,13 +19,15 @@ void StdinClient::start() {
 	}
 
 	p->setConnection(c);
-	
-	while (printf("Input Mesg: ") && std::cin >> sendline) {
-		p->sendMessage(sendline, strlen(sendline));
-		printf("Application Layer: MESSAGE '%s' SENT\n", sendline);
-	}
 
-	printf("stdin returned NULL\n");
+	char* filerequest = "GET image1.png";
+	p->sendMessage(filerequest,strlen(filerequest),false);
+
+	char *mesg;
+	while ((mesg = p->receiveMessage(true)) != NULL) {
+	}
+	
+
 }
 
 /* Run a StdinClient over a ClientUDPConnection using the GoBackNProtocol */

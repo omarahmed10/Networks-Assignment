@@ -19,14 +19,11 @@ void StdoutServer::start() {
 
 	p->setConnection(c);
 
-	char *mesg;
-	while ((mesg = p->receiveMessage()) != NULL) {
-		fputs(mesg,stdout);
-		printf("\n");
+	while(1){
+		char *mesg = p->receiveMessage(false);
 	}
 
 	printf("server stopping\n");
-
 }
 
 

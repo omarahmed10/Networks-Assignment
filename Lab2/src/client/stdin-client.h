@@ -10,8 +10,6 @@ private:
 	Protocol *p;
 	Connection *c;
 
-	char sendline[BUF_SIZE];
-	
 public:
 	StdinClient(Protocol *p, Connection *c);
 	void start();
