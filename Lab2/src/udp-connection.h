@@ -33,6 +33,7 @@ class UDPConnection : public Connection
 
 	virtual struct sockaddr_in getRecvAddr();
 	virtual struct sockaddr_in getServAddr();
+	virtual int getSockFD();
 	virtual void dumpInfo();
 };
 

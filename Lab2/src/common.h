@@ -6,9 +6,10 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <map>
 
 #define DEFAULT_PORT 12346
-#define BUF_SIZE 1024
+#define BUF_SIZE 512
 
 #define MAX_DATAGRAM_SIZE 500
 #define DATAGRAM_IDENT "DATA"
@@ -37,6 +38,8 @@ public:
 	}
 };
 
+//map<string, ThreadData> thread_data_mem;
+
 /* Abstract connection that defines the necessary socket i/o functions.
  Implementations may decide which transport layer protocol to use */
 class Connection {
@@ -58,6 +61,7 @@ public:
 
 	virtual struct sockaddr_in getRecvAddr() = 0;
 	virtual struct sockaddr_in getServAddr() = 0;
+	virtual int getSockFD() = 0;
 
 	virtual ~Connection() {
 	}
@@ -70,25 +74,39 @@ public:
 class Protocol {
 protected:
 	Connection *c;
+
 public:
 
+	map<string, map<int, Packet>>* sh_mem;
 	/* set connection to interact with */
 	void setConnection(Connection *c) {
 		this->c = c;
 	}
 	;
 
+	virtual int sendRequest(char *line,
+			struct sockaddr_in toAddr) = 0;
+
+	/* send an ACK containing sequence number seqn */
+	virtual void sendAck(int ackno,
+			struct sockaddr_in toAddr) = 0;
+
 	/* send a message of size t starting at the memory address pointed to by line
 	 through the implememted protocol */
-	virtual int sendMessage(char* line, int t,
+	virtual int sendMessage(string hash, char* line, int t,
 			struct sockaddr_in toAddr) = 0;
 
 	/* receive a message through the implemented protocol */
-	virtual char* receiveMessage() = 0;
+	virtual char* receiveMessage(string fileName) = 0;
 
 	virtual ~Protocol() {
 	}
 	;
 };
 
+struct ThreadData {
+	string fileName, hash;
+	struct sockaddr_in addr;
+	Protocol *p;
+};
 #endif

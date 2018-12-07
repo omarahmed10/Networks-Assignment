@@ -19,14 +19,17 @@ void StdinClient::start() {
 	}
 
 	p->setConnection(c);
+	cout << "input file name : ";
+	string filename;
+	cin >> filename;
+	char filerequest[MAX_DATAGRAM_SIZE] = "GET ";
+	strcat(filerequest, filename.c_str());
 
-	char filerequest[] = "GET image1.png";
-	p->sendMessage(filerequest, strlen(filerequest),
-			c->getServAddr());
+	p->sendRequest(filerequest, c->getServAddr());
 
 	const char *mesg;
-	while ((mesg = p->receiveMessage()) != NULL) {
-	}
+	mesg = p->receiveMessage(filename);
+	cout << "Client received all file" << endl;
 
 }
 

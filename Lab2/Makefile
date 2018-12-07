@@ -16,10 +16,10 @@ CPPFLAGS=-g -std=gnu++0x -I$(IDIR)
 all: client server
 
 client: $(CLIENT_OBJECTS) $(CLIENT_DEPS)
-	$(CXX) $(CLIENT_OBJECTS) -o bin/client
+	$(CXX) $(CLIENT_OBJECTS) -o bin/client -pthread
 
 server: $(SERVER_OBJECTS) $(SERVER_DEPS)
-	$(CXX) $(SERVER_OBJECTS) -o bin/server
+	$(CXX) $(SERVER_OBJECTS) -o bin/server -pthread
 
 src/client/%.o: src/client/%.cpp $(CLIENT_DEPS)
 	$(CXX) -c -o $@ $< $(CPPFLAGS)

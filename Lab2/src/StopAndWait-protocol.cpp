@@ -3,6 +3,7 @@
 #include <cstring>
 #include <errno.h>
 #include <exception>
+#include <sys/time.h>
 #include "StopAndWait-protocol.h"
 
 #define MIN(a, b) \
@@ -10,44 +11,62 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
+int filesize = -1;
+
 StopAndWaitProtocol::StopAndWaitProtocol() {
 	c = NULL;
 }
 
-int StopAndWaitProtocol::sendDatagram(char *p,
+int StopAndWaitProtocol::sendDatagram(char *p, int seqno,
 		struct sockaddr_in toAddr) {
 	char *pTemp;
 	pTemp = new char[BUF_SIZE];
-	sprintf(pTemp, "%d %s", last_seq_no++, p);
+	sprintf(pTemp, "%d %s", seqno, p);
 	return c->send(pTemp, MIN(BUF_SIZE, strlen(pTemp)), toAddr);
 }
 
-int StopAndWaitProtocol::sendMessage(char *line, int t,
+int StopAndWaitProtocol::sendRequest(char *line,
 		struct sockaddr_in toAddr) {
-	if (c == NULL) {
-		throw std::exception();
-	}
-	int total_byte = 0;
-	int current_byte = 0;
-	/* loop while we have more to send or are still waiting
-	 on outstanding ACKs */
-	while (t > 0) {
-		/* send as many as we can*/
-		line += current_byte;
-		int sendlen = sendDatagram(line, toAddr);
-		current_byte = 0;
-		/* listen */
+	int sendsize = -1;
+	for (;;) {
+		sendsize = sendDatagram(line, -1, toAddr);
 		if (acceptAcks()) {
-			current_byte = sendlen; // advance the line pointer when ack received.
-			t -= sendlen;
-			total_byte += sendlen;
-		} else {
-			std::cout << "NACK" << std::endl;
+			break;
 		}
 	}
+	return sendsize;
+}
 
-	printf("ALL BYTES SENT for line %s\n", line);
-	return total_byte;
+int StopAndWaitProtocol::sendMessage(string hash, char *line,
+		int t, struct sockaddr_in toAddr) {
+	int sendsize = -1;
+	(*sh_mem)[hash][last_seq_no] = Packet();
+	(*sh_mem)[hash][last_seq_no].data = line;
+	(*sh_mem)[hash][last_seq_no].seqno = last_seq_no;
+	for (;;) {
+		struct timeval tp;
+		gettimeofday(&tp, NULL);
+		long int s = tp.tv_sec;
+		sendsize = sendDatagram(line, last_seq_no, toAddr);
+		bool acked = false;
+		while (!acked) {
+			struct timeval tp;
+			gettimeofday(&tp, NULL);
+			long int nows = tp.tv_sec;
+			if ((*sh_mem)[hash][last_seq_no].is_ACK) { // acked
+				last_seq_no++;
+				acked = true;
+				break;
+			}
+			if (nows - s >= 10) {
+				break;
+			}
+		}
+		if (acked) {
+			break;
+		}
+	}
+	return sendsize;
 }
 
 bool StopAndWaitProtocol::acceptAcks() {
@@ -70,9 +89,8 @@ bool StopAndWaitProtocol::listenForAck() {
 		printf("TIMEOUT\n");
 		return false;
 	}
-	int ack_seqn;
-	sscanf(buf, ACK_IDENT " %d", &ack_seqn);
-	cout << "ACK recv for " << ack_seqn << endl;
+	istringstream iss(buf); // 0000 ACK   /// 000 GET asdfasdf
+	iss >> filesize;
 	return true;
 }
 
@@ -80,27 +98,39 @@ void StopAndWaitProtocol::sendAck(int ackno,
 		struct sockaddr_in toAddr) {
 	char *pTemp;
 	pTemp = new char[BUF_SIZE];
-	sprintf(pTemp, ACK_IDENT " %d", ackno);
+	sprintf(pTemp, "%d %s", ackno, ACK_IDENT);
 	c->send(pTemp, strlen(pTemp), toAddr);
 }
 
-char *StopAndWaitProtocol::receiveMessage() {
+char *StopAndWaitProtocol::receiveMessage(string fileName) {
 	int datagram_seqn;
 	char payload;
 
 	if (c == NULL) {
 		throw std::exception();
 	}
-	std::cout << "blocking for receive" << std::endl;
+	cout << "blocking for receive file of size " << filesize
+			<< endl;
 	char *buf;
 	buf = new char[BUF_SIZE];
-	Packet *p = new Packet();
-	while (c->blocking_receive(buf) != -1) {
-		int ackno = 10;
-		p->data = buf;
-		p->is_ACK = false;
-		cout << "sending ACK for " << ackno << endl;
-		sendAck(ackno, c->getRecvAddr());
+	ofstream myfile("recvData/" + fileName,
+			ios::out | ios::binary);
+	if (!myfile.is_open()) {
+		return NULL;
 	}
+	while (c->blocking_receive(buf) != -1) {
+		istringstream ss(buf);
+		int ackno;
+		ss >> ackno;
+		string mes = buf;
+		string data = mes.substr(mes.find(' ') + 1);
+		myfile << data;
+		sendAck(ackno, c->getRecvAddr());
+		filesize -= data.size();
+		cout << "rema " << filesize << endl;
+		if (filesize <= 0)
+			break;
+	}
+	myfile.close();
 	return buf;
 }

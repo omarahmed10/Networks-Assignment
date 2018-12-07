@@ -1,0 +1,378 @@
+﻿
+Introduction:
+-----------------
+You can think of Machine Learning as applied statistics or advanced algorithms.
+Machine learning is closely related to (and often overlaps with) computational statistics, which also focuses 
+on prediction-making through the use of computers. 
+It has strong ties to mathematical optimization, which delivers methods, theory and application domains to the field. 
+
+
+The name machine learning was coined in 1959 by Arthur Samuel an American pioneer in the field while at IBM. 
+Evolved from the study of pattern recognition and computational learning theory in artificial intelligence, machine learning 
+explores the study and construction of algorithms that can learn from and make predictions on data.
+
+
+Example applications include:
+- email filtering
+- detection of network intruders or malicious insiders working towards a data breach
+- optical character recognition (OCR)
+- learning to rank
+- computer vision and many otherrs
+
+
+------------------------------------------------------------------------------------------------------------------------------------------
+Concepts and Definition:
+-------------------------
+
+* Bag of Words
+- the Bag of Words(BoW) concept which is a term used to specify the problems that have a 'bag of words' or a collection of text data 
+  that needs to be worked with. The basic idea of BoW is to take a piece of text and count the frequency of the words in that text. 
+  It is important to note that the BoW concept treats each word individually and the order in which the words occur does not matter.
+
+
+Models
+--------
+* Gradient Descent
+* Linear Regression : Ordinary least squares (OLS)
+* Logestic Regression: log loss function
+* Decession Tree
+* SVM: support vector machine: min distance
+* K-mean clustering
+* hierarchy clustering
+* Naive Bayes Theorem
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Model Evaluation and validation
+---------------------------------
+
+- testing, overfitting
+- confusion matrix
+
+- Sensitivity or True Positive Rate
+- Specificity or True Negative Rate
+- Type 1 Error (Error of the first kind, or False Positive)
+- Type 2 Error (Error of the second kind, or False Negative):
+
+
+Evalation metrics
+------------------
+
+* Accuracy: 
+------------
+- How many of ther predictions were correct?
+
+(True positive + True negative) / all predictions
+
+- It isn't a good measure when the data is skewed.
+
+
+* Percesion:
+-------------
+- Out of the predictions that labeld positive how many were really positive?
+
+True positive / (True positive + False Positive)
+
+- Is used when you are interested in removing type 1 error (false positive), so we need high Percesion
+- (You can think of Percesion as the Accuracy of positive predections, )
+
+
+* Recall(sesnsitivity)
+----------------------
+- Out of the positive samples predictions, how many we predicted right?
+
+True positive / (True positive + False Negative)
+
+- Is used when you are interested in removing type  error (False Negative), so we need high recall
+- (You can think of Recall as a measure how many real positives our prediction catch)
+
+
+
+
+* F1 score
+-------------
+- Arithmetic mean (x,y)= x+y/2 where  the harmonic mean = 2xy/(x+y)
+- Harmonic mean is always less than the arithmetic mean
+- It's closer to the lower value
+
+- F1 score =  harmonic mean(Percesion, Recall)
+
+
+* F-beta score
+----------------
+
+- F-β(Percesion, Recall) = 
+
+(1+β^2) (Percesion * Recall)
+___________________________
+ β^2*Percesion + Recall
+
+
+- So low beta value means more importance for Percesion over Recall.
+- And high beta value means more importance for Recall over Percesion.
+- If β=0, then we get precision.
+- If β=∞, then we get recall.
+- If  β=1, then we get the harmonic mean
+
+- Picking the right beta needs intuition and experimentation.
+
+
+Recieving operating characteristic curve (ROC curve)
+-----------------------------------------------------
+Try different splits and then for each one:
+ - Calculate the True Positive Rate = True positives / All positives
+ - Calculate the False Positive Rate = false positive / All Negatives
+ - then plot this pair (1,2)
+
+After this calculate the area under the plotted curve, then the area is:
+- 1: perfect split
+- around 0.8: good split 
+- around 0.5: random split
+
+
+* Regression Metrics:
+------------------------
+
+- Mean Absolute Error
+- Mean Squared Error
+
+R2 score
+------------
+- R2 score,  R = 1 - Mean Squared Error of regreesion line /Mean Squared Error of the mean
+- R2 is called  "coefficient of determination"
+- R is the pearson's R
+
+The definition of R-squared is fairly straight-forward; it is the percentage of the response variable variation that is explained by a linear model. Or:
+
+R-squared = Explained variation / Total variation
+
+R-squared is always between 0 and 100%:
+
+0% indicates that the model explains none of the variability of the response data around its mean.
+100% indicates that the model explains all the variability of the response data around its mean
+
+
+A model with an R2 of 0 is no better than a model that always predicts the mean of the target variable, whereas a model 
+with an R2 of 1 perfectly predicts the target variable. 
+Any value between 0 and 1 indicates what percentage of the target variable, using this model, can be explained by the features.
+ 
+
+The more variance that is accounted for by the regression model the closer the data points will fall to the fitted regression line. 
+Theoretically, if a model could explain 100% of the variance, the fitted values would always equal the observed values and, 
+therefore, all the data points would fall on the fitted regression line.
+
+Key Limitations of R-squared
+--------------------------------
+R-squared cannot determine whether the coefficient estimates and predictions are biased, which is why you must assess the residual plots.
+
+R-squared does not indicate whether a regression model is adequate. You can have a low R-squared value for a good model, or 
+a high R-squared value for a model that does not fit the data!
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+								*** Detecting Errors ***
+
+
+
+Types of Errors:
+----------------
+- underfitting (high biase)
+  oversimpify the problem
+  error due to bias
+  the model performs bad on the training set becaues it's so simple and also bad on testing set
+
+- Overfitting (high variance)
+  overcomplicating the problem
+  error due to variance
+  the model performs very well on the training set but bad on testing set
+  it's very specific and tends to memorize the data instead of learning the characterisitcs from it. 
+  so it fails to generalize well to the testing set.
+
+
+Model complexity graph
+----------------------
+- plot of training error and testing errors of different models
+- x axis is the complexity of the model
+- y axis is the error
+
+- undefitting -> high training error and high testing error.
+- overfitting -> very low training error and high testing error.
+
+
+Cross validation:
+------------------
+- we split the data into 3 categories : 
+ * Training set: to train the model
+ * Cross validation set: to make decession about the model (used in Model complexity graph)
+ * Testing set: used in the very end to the purpose of testing
+
+
+K-fold Cross validation
+--------------------------
+- Break the data into k buckets, then train the model k times each time using a different bucket as our testing set
+  and the remaingn as the training set , then we average the results to get to final model
+
+- To avoid bias, randomizing the buckets is recommended
+
+
+Learining curve
+---------------------
+
+- A curve between the size of the trainng set and the number of errors in both training and cross validation set
+- I's a good way to detect underfitting, overfitting and just right modeling 
+
+- It's always good to do a reality check when we can, and see that our models actually do have the behavior that the metrics tell us.
+
+
+Grid search:
+------------
+It's an algorithm with the help of which we can tune hyper-parameters of a model. 
+We pass the hyper-parameters to tune, the possible values for each hyper-parameter and a performance metric as input 
+to the grid search algorithm. The algorithm will then place all the possible hyper-parameter combination in a grid 
+and then find the performance of the model for each combination against some cross-validation set. 
+Then it outputs the hyper-parameter combination that gives the best result.
+
+
+- let parameter p1 has values: x1, x2, x3 and parameter p2 has values: y1, y2 . then the Grid Search is:
+
+p1 \ p2	|   y1	|   y2
+-------------------------------
+   x1	|	|
+-------------------------------
+   x2	|	|
+-------------------------------
+   x2	|	|
+-------------------------------
+
+- Since the parameter space of a machine learner may include real-valued or unbounded value spaces for certain parameters, 
+manually set bounds and discretization may be necessary before applying grid search.
+
+
+
+Sensitivity
+---------------
+An optimal model is not necessarily a robust model. Sometimes, a model is either too complex or too simple to sufficiently 
+generalize to new data. Sometimes, a model could use a learning algorithm that is not appropriate for the structure of the data given.
+Other times, the data itself could be too noisy or contain too few samples to allow a model to adequately 
+capture the target variable — i.e., the model is underfitted.
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+							*** Supervised Learning ***
+
+
+Regression:
+------------
+- Error/Loss function
+- Linear Regression
+- Polynomial Regression
+
+
+* IID independent identically data
+* Runge's phenomenon
+
+regression word history
+Reinforcement learning
+
+
+
+- Parametric Regression
+- non-parametric(instance-based) model; 
+  * KNN (k nearest neighbor ) ; average the surrounding 
+  * Kernel Regression: add 
+
+* Parametric  vs non-parametric models:
+Parametric  : 
+++ space efficient , we don't store the data
+-- we can't easily update the data as more data is gathered, we need to re-train the model
+
+Non-parametric:
+
+-- we have to store all the data set, hard to apply when we have huge dataset
+++ new data can be added easily, since no para need to be learned
+++ training is fast
+-- quering is slow
+
+++ doesn't assuem certain model , it's suitable to fit complex pattern where we don't know 
+
+
+- OLS vs Gradient Descent
+
+
+- continuos vs discrete models
+- continuos supervised learning 
+- Classification vs Regression
+
+
+
+Decession Trees
+----------------
+
+- If we have N attributes we have 2^(2^n) different decesion trees.
+- ID3 Algorithm
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+							    *  Neural Networks  *
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+							*** Unsupervised Learning ***
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+							*** Reinforcement learning ***
+
+---------------------------------------
+
+							    *  Neural Networks  *
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+							*** Un
