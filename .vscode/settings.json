@@ -8,6 +8,11 @@
         "pthread.h": "c",
         "tcpfunctions.h": "c",
         "inet.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "array": "cpp",
+        "system_error": "cpp",
+        "typeinfo": "cpp",
+        "limits": "cpp",
+        "algorithm": "cpp"
     }
 }
