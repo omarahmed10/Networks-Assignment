@@ -7,10 +7,11 @@ received (or until a timeout expires). */
 class StopAndWaitProtocol : public Protocol
 {
   private:
-    char buffer[BUF_SIZE]; //buffer used for incoming and outgoing messages
+//    char buffer[BUF_SIZE]; //buffer used for incoming and outgoing messages
+	int last_seq_no = 0;
 
     /* use the underlying connection to send a message */
-    int sendDatagram(char *p);
+    int sendDatagram(char *p, struct sockaddr_in toAddr);
 
     /* listen for an ACK, returns true if the socket does not timeout */
     bool acceptAcks();
@@ -19,15 +20,15 @@ class StopAndWaitProtocol : public Protocol
     bool listenForAck();
 
     /* send an ACK containing sequence number seqn */
-    void sendAck(char *message);
+    void sendAck(int ackno, struct sockaddr_in toAddr);
 
   public:
     StopAndWaitProtocol();
 
     /* implementation of abstract Protocol::sendMessage */
-    virtual int sendMessage(char *line, unsigned int t, bool recvACK);
+    virtual int sendMessage(char *line, int t, struct sockaddr_in toAddr);
     /* implementation of abstract Protocol::receiveMessage */
-    virtual char *receiveMessage(bool sendACK);
+    virtual char * receiveMessage();
 };
 
 #endif

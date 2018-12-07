@@ -20,18 +20,18 @@ void StdinClient::start() {
 
 	p->setConnection(c);
 
-	char* filerequest = "GET image1.png";
-	p->sendMessage(filerequest,strlen(filerequest),false);
+	char filerequest[] = "GET image1.png";
+	p->sendMessage(filerequest, strlen(filerequest),
+			c->getServAddr());
 
-	char *mesg;
-	while ((mesg = p->receiveMessage(true)) != NULL) {
+	const char *mesg;
+	while ((mesg = p->receiveMessage()) != NULL) {
 	}
-	
 
 }
 
 /* Run a StdinClient over a ClientUDPConnection using the GoBackNProtocol */
-int main(int argc,char **argv) {
+int main(int argc, char **argv) {
 
 	/* fetch the server_ip in dot dotation form from the cmd line, port is optional */
 	int port;
