@@ -77,7 +77,7 @@ protected:
 
 public:
 
-	map<string, map<int, Packet>>* sh_mem;
+//	map<string, map<int, Packet>>* sh_mem;
 	/* set connection to interact with */
 	void setConnection(Connection *c) {
 		this->c = c;
@@ -93,20 +93,39 @@ public:
 
 	/* send a message of size t starting at the memory address pointed to by line
 	 through the implememted protocol */
-	virtual int sendMessage(string hash, char* line, int t,
-			struct sockaddr_in toAddr) = 0;
+	virtual void sendFile(string fileName,
+			void* arg) = 0;
+//	virtual int sendPacket(string hash, char* line, int t,
+//			struct sockaddr_in toAddr) = 0;
 
-	/* receive a message through the implemented protocol */
 	virtual char* receiveMessage(string fileName) = 0;
+
+	virtual void addACK(int seq_no) = 0;
+
+	virtual int sendDatagram(const char *p, int len, int seqno,
+			struct sockaddr_in toAddr) = 0;
 
 	virtual ~Protocol() {
 	}
 	;
+
 };
 
-struct ThreadData {
+
+struct ThreadClientData {
 	string fileName, hash;
 	struct sockaddr_in addr;
 	Protocol *p;
+//	map<int, Packet> thmem;
+	map<string, map<int, Packet>>* sh_mem;
+};
+struct ThreadPacketData {
+	string hash;
+	string data;
+	int datalen, seq_no;
+	struct sockaddr_in addr;
+	Protocol *p;
+	map<string, map<int, Packet>>* sh_mem;
+//	map<int, Packet> thmem;
 };
 #endif

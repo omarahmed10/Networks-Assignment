@@ -40,8 +40,8 @@ int UDPConnection::send(const void *message, unsigned int length,
 		struct sockaddr_in toAddr) {
 	int port = ntohs(toAddr.sin_port);
 	string ip = inet_ntoa(toAddr.sin_addr);
-//	cout << "sending " << (char *)message << " to " << ip << " port "
-//			<< port << endl;
+//	cout << "sending " << (char *) message << " size=" << length
+//			<< " to " << ip << " port " << port << endl;
 	return sendto(sockfd, message, length, 0,
 			(struct sockaddr *) &toAddr, sizeof(toAddr));
 }
@@ -52,19 +52,19 @@ int UDPConnection::blocking_receive(char *return_buf) {
 	memset(&recvaddr, 0, sizeof(recvaddr));
 	int datalen = recvfrom(sockfd, mesg, BUF_SIZE, 0,
 			(struct sockaddr *) &recvaddr, &len);
-	mesg[datalen] = '\0';
+//	mesg[datalen] = '\0';
 
-	memcpy(return_buf, mesg, BUF_SIZE);
 	if (datalen < 0) {
 		cout << "nothing received" << endl;
 		return datalen;
 	}
+	memcpy(return_buf, mesg, datalen);
 
 	int port = ntohs(recvaddr.sin_port);
 	string ip = inet_ntoa(recvaddr.sin_addr);
 
-	cout << "received of len=" << datalen << " from ip=" << ip
-			<< " port=" << port << endl;
+//	cout << "received of len=" << datalen << " from ip=" << ip
+//			<< " port=" << port << endl;
 
 	return datalen;
 }

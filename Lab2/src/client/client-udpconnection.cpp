@@ -7,7 +7,7 @@ ClientUDPConnection::ClientUDPConnection() {
 	printf("Client connection created\n");
 }
 
-ClientUDPConnection::ClientUDPConnection(int port, char* ip_dot_notation) {
+ClientUDPConnection::ClientUDPConnection(int port, const char* ip_dot_notation) {
 	servaddr.sin_port   = htons(port);
 	servaddr.sin_addr.s_addr = inet_addr(ip_dot_notation);
 	printf("Client connection created\n");

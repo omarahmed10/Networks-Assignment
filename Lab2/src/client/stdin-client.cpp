@@ -4,6 +4,7 @@
 #include "stdin-client.h"
 #include "../gobackn-protocol.h"
 #include "../StopAndWait-protocol.h"
+#include "../SR-protocol.h"
 #include "client-udpconnection.h"
 
 StdinClient::StdinClient(Protocol *p, Connection *c) {
@@ -11,6 +12,7 @@ StdinClient::StdinClient(Protocol *p, Connection *c) {
 	this->c = c;
 }
 
+string filename;
 void StdinClient::start() {
 
 	if (c->connect() < 0) {
@@ -19,9 +21,7 @@ void StdinClient::start() {
 	}
 
 	p->setConnection(c);
-	cout << "input file name : ";
-	string filename;
-	cin >> filename;
+	filename.append(" ");
 	char filerequest[MAX_DATAGRAM_SIZE] = "GET ";
 	strcat(filerequest, filename.c_str());
 
@@ -32,24 +32,28 @@ void StdinClient::start() {
 	cout << "Client received all file" << endl;
 
 }
-
 /* Run a StdinClient over a ClientUDPConnection using the GoBackNProtocol */
 int main(int argc, char **argv) {
 
-	/* fetch the server_ip in dot dotation form from the cmd line, port is optional */
-	int port;
-	if (argc <= 1) { // no args
-		printf("usage: udp-client <server_ip> <port>\n");
-		exit(-1);
-	} else if (argc <= 2) { // got an ip, but no port
-		port = DEFAULT_PORT;
-	} else {
-		port = atoi(argv[2]);
-	}
+	//client file
+	ifstream infile("client.in");
+	string line;
+	getline(infile, line);
+	string ip = line;
+	getline(infile, line);
+	int serv_port = atoi(line.c_str());
+	getline(infile, line);
+	filename.append(line);
+	getline(infile, line);
+	int window = atoi(line.c_str());
+	infile.close();
+	//end of client file
 
-	ClientUDPConnection c(port, argv[1]);
+	ClientUDPConnection c(serv_port, ip.c_str());
 	// GoBackNProtocol p;
-	StopAndWaitProtocol p;
+	// StopAndWaitProtocol p;
+	SRProtocol p;
+	p.windowsize = window;
 
 	StdinClient client(&p, &c);
 	client.start();
