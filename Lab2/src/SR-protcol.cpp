@@ -58,13 +58,13 @@ int SRProtocol::sendDatagram(const char *p, int len, int seqno,
 	stringstream ss;
 	ss << seqno << " ";
 	sprintf(pTemp, "%d %s", seqno, p);
-//	pthread_mutex_lock(&connection_lock);
+	pthread_mutex_lock(&connection_lock);
 	cout << "\033[1;34mseding packet no" << seqno << " size="
 			<< (ss.str().size() + len) << "\033[0m" /*<< p
 			 << "\n================"*/<< endl;
 	int sendsize = c->send(pTemp,
 			MIN(BUF_SIZE, ss.str().size() + len), toAddr);
-//	pthread_mutex_unlock(&connection_lock);
+	pthread_mutex_unlock(&connection_lock);
 	return sendsize;
 }
 
@@ -137,16 +137,16 @@ void SRProtocol::sendFile(string fileName, void* arg) {
 		int totalSize = 0;
 		srand(carg.p->seed);
 		while (myfile) {
-//			pthread_mutex_lock(&base_lock);
+			pthread_mutex_lock(&base_lock);
 			if (next_seq_num - send_base >= windowsize) { // window is full cannot send a new packet.
-				cout << "\033[1;33m waiting " << next_seq_num
-						<< " base " << send_base << "\033[0m"
-						<< endl;
-//				pthread_mutex_unlock(&base_lock);
+//				cout << "\033[1;33m waiting " << next_seq_num
+//						<< " base " << send_base << "\033[0m"
+//						<< endl;
+				pthread_mutex_unlock(&base_lock);
 				sleep(1); // prevent this thread from holding the lock so other can have it.
 				continue;
 			}
-//			pthread_mutex_unlock(&base_lock);
+			pthread_mutex_unlock(&base_lock);
 			memset(memblock, 0, MAX_DATAGRAM_SIZE);
 			myfile.read(memblock, MAX_DATAGRAM_SIZE);
 			int i = myfile.gcount();
@@ -271,9 +271,9 @@ char *SRProtocol::receiveMessage(string fileName) {
 				<< "\033[0m"
 				/*<< "\n"<<data<<"=============="*/<< endl;
 		if (ackno < recv_base) {
-			cout << "\033[1;31mreceived packet no" << ackno
-					<< " size=" << len << " datasize="
-					<< data.size() << "\033[0m" << endl;
+//			cout << "\033[1;31mreceived packet no" << ackno
+//					<< " size=" << len << " datasize="
+//					<< data.size() << "\033[0m" << endl;
 			continue;
 		}
 		if (ackno - recv_base < windowsize) {
@@ -285,7 +285,7 @@ char *SRProtocol::receiveMessage(string fileName) {
 			std::vector<Packet>::iterator it;
 			it = find(window.begin(), window.end(), newPack);
 			if (it != window.end()) {
-				cout << "\033[1;33mpacket exist\033[0m" << endl;
+//				cout << "\033[1;33mpacket exist\033[0m" << endl;
 				continue;
 			}
 
