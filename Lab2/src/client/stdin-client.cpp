@@ -43,13 +43,15 @@ int main(int argc, char **argv) {
 	getline(infile, line);
 	int serv_port = atoi(line.c_str());
 	getline(infile, line);
+	int client_port = atoi(line.c_str());
+	getline(infile, line);
 	filename.append(line);
 	getline(infile, line);
 	int window = atoi(line.c_str());
 	infile.close();
 	//end of client file
 
-	ClientUDPConnection c(serv_port, ip.c_str());
+	ClientUDPConnection c(client_port, serv_port, ip.c_str());
 	// GoBackNProtocol p;
 	// StopAndWaitProtocol p;
 	SRProtocol p;

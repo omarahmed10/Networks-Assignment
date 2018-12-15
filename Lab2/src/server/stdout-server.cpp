@@ -14,7 +14,7 @@ StdoutServer::StdoutServer(Protocol *p, Connection *c) {
 	this->p = p;
 	this->c = c;
 }
-map<string, map<int, Packet>> sh_mem;
+map<string, map<int, bool>> sh_mem;
 int window;
 
 int checkfile(string file) {
@@ -49,6 +49,7 @@ void StdoutServer::start() {
 		return;
 	}
 	p->setConnection(c);
+	int clients = 0;
 //	p->sh_mem = &sh_mem;
 	while (1) {
 		char mesg[BUF_SIZE];
@@ -74,7 +75,7 @@ void StdoutServer::start() {
 			cout << "req for " << file << endl;
 
 			// init shared memory for the new thread.
-			map<int, Packet> thread_mem;
+			map<int, bool> thread_mem;
 			sh_mem[hash] = thread_mem;
 
 			int filesize = checkfile(file);
@@ -94,6 +95,8 @@ void StdoutServer::start() {
 			thdata.hash.append(hash);
 			thdata.addr = cliaddr;
 			SRProtocol *sr = new SRProtocol();
+			sr->seed = p->seed;
+			sr->error = p->error;
 			sr->setConnection(c);
 			sr->windowsize = window;
 			thdata.p = sr;
@@ -103,8 +106,8 @@ void StdoutServer::start() {
 		} else { // aCK
 			int ackno = packetNo;
 			//update the shared memory between processes
-			if (sh_mem[hash].count(packetNo) > 0){
-				sh_mem[hash][ackno].is_ACK = true;
+			if (sh_mem[hash].count(packetNo) > 0) {
+				sh_mem[hash][ackno]/*.is_ACK */= true;
 			}
 		}
 	}
@@ -131,7 +134,8 @@ int main(int argc, char **argv) {
 	// GoBackNProtocol p;
 //	StopAndWaitProtocol p;
 	SRProtocol p;
-
+	p.seed = seed;
+	p.error = error;
 	StdoutServer server(&p, &c);
 	server.start();
 }

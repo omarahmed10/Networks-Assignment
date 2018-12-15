@@ -6,9 +6,13 @@
 
 /* client implementation of UDPConnection */
 class ClientUDPConnection : public UDPConnection {
+protected:
+
+	int cli_port = 12347;
+	virtual int onSocketCreated();
 public:
 	ClientUDPConnection();
-	ClientUDPConnection(int port, const char* ip_dot_notation);
+	ClientUDPConnection(int cliPort, int port, const char* ip_dot_notation);
 	virtual ~ClientUDPConnection();
 };
 

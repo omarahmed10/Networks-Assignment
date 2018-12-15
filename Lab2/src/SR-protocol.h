@@ -27,7 +27,8 @@ private:
 	/* helper function to set timeout to 5 seconds before listening for an ACK */
 	bool listenForAck();
 
-	pthread_mutex_t lock;
+	pthread_mutex_t base_lock;
+	pthread_mutex_t connection_lock;
 
 public:
 	int windowsize = 1;

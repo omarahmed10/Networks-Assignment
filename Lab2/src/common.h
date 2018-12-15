@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+#include <string>
 
 #define DEFAULT_PORT 12346
 #define BUF_SIZE 512
@@ -35,6 +36,10 @@ public:
 		checksum = 0;
 		is_ACK = false;
 		data = "";
+	}
+
+	bool operator==(const Packet& p) const {
+		return seqno == p.seqno;
 	}
 };
 
@@ -77,6 +82,7 @@ protected:
 
 public:
 
+	float seed = 1.0, error = 0.4;
 //	map<string, map<int, Packet>>* sh_mem;
 	/* set connection to interact with */
 	void setConnection(Connection *c) {
@@ -93,8 +99,7 @@ public:
 
 	/* send a message of size t starting at the memory address pointed to by line
 	 through the implememted protocol */
-	virtual void sendFile(string fileName,
-			void* arg) = 0;
+	virtual void sendFile(string fileName, void* arg) = 0;
 //	virtual int sendPacket(string hash, char* line, int t,
 //			struct sockaddr_in toAddr) = 0;
 
@@ -111,13 +116,18 @@ public:
 
 };
 
-
+template<typename T>
+string NumberToString(T Number) {
+	ostringstream ss;
+	ss << Number;
+	return ss.str();
+}
 struct ThreadClientData {
 	string fileName, hash;
 	struct sockaddr_in addr;
 	Protocol *p;
 //	map<int, Packet> thmem;
-	map<string, map<int, Packet>>* sh_mem;
+	map<string, map<int, bool>>* sh_mem;
 };
 struct ThreadPacketData {
 	string hash;
@@ -125,7 +135,7 @@ struct ThreadPacketData {
 	int datalen, seq_no;
 	struct sockaddr_in addr;
 	Protocol *p;
-	map<string, map<int, Packet>>* sh_mem;
+	map<string, map<int, bool>>* sh_mem;
 //	map<int, Packet> thmem;
 };
 #endif
