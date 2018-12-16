@@ -17,10 +17,13 @@ class SRProtocol: public Protocol {
 private:
 //    char buffer[BUF_SIZE]; //buffer used for incoming and outgoing messages
 	int next_seq_num = 0, filesize = -1, send_base = 0,
-			recv_base = 0;
+			recv_base = 0, num_active = 0, packNo = 0;
+	long int timeout = 1;
 	vector<int> ACKs;
+	map<int,Packet> allPackets;
 	vector<Packet> window;
 
+	bool checktimeout(map<int, bool> ack_mem);
 	/* listen for an ACK, returns true if the socket does not timeout */
 	bool acceptAcks();
 

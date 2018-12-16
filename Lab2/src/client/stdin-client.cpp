@@ -25,12 +25,14 @@ void StdinClient::start() {
 	char filerequest[MAX_DATAGRAM_SIZE] = "GET ";
 	strcat(filerequest, filename.c_str());
 
-	p->sendRequest(filerequest, c->getServAddr());
+	int filesize = p->sendRequest(filerequest, c->getServAddr());
 
-	const char *mesg;
-	mesg = p->receiveMessage(filename);
-	cout << "Client received all file" << endl;
-
+	if (filesize > 1) {
+		p->receiveMessage(filename);
+		cout << "Client received all file" << endl;
+	}else{
+		cout << "file not found" << endl;
+	}
 }
 /* Run a StdinClient over a ClientUDPConnection using the GoBackNProtocol */
 int main(int argc, char **argv) {

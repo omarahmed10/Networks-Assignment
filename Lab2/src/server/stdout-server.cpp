@@ -21,8 +21,6 @@ int checkfile(string file) {
 	ifstream myfile("data/" + file,
 			ios::in | ios::binary | ios::ate);
 	if (myfile.is_open()) {
-		char *memblock;
-		memblock = new char[MAX_DATAGRAM_SIZE];
 		int size = myfile.tellg();
 		myfile.close();
 		return size;
@@ -66,27 +64,25 @@ void StdoutServer::start() {
 		hash.append(portNo);
 		string request = mesg;
 		istringstream iss(request); // 0000 ACK   /// 000 GET asdfasdf
-		int packetNo;
+		int packetNo, checksum;
 		string type, file;
-		iss >> packetNo;
+		iss >> packetNo >> checksum;
 		iss >> type;
 		if (type.compare("GET") == 0) { // new request detected.
 			iss >> file;
-			cout << "req for " << file << endl;
+			cout << "req for " << request << endl;
 
 			// init shared memory for the new thread.
 			map<int, bool> thread_mem;
 			sh_mem[hash] = thread_mem;
 
 			int filesize = checkfile(file);
+			// sending ack for client to inform file request received.
+			p->sendAck(filesize, c->getRecvAddr());
 			if (filesize < 0) {
 				cout << "File not Found" << endl;
 				continue;
 			}
-			// 358130
-
-			// sending ack for client to inform file request received.
-			p->sendAck(filesize, c->getRecvAddr());
 
 			ThreadClientData thdata;
 //			thdata.thmem = thread_mem;
@@ -107,6 +103,7 @@ void StdoutServer::start() {
 			int ackno = packetNo;
 			//update the shared memory between processes
 			if (sh_mem[hash].count(packetNo) > 0) {
+				cout << "recv ACK " << ackno << endl;
 				sh_mem[hash][ackno]/*.is_ACK */= true;
 			}
 		}

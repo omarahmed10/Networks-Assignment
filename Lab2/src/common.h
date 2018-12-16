@@ -22,19 +22,24 @@ class Packet {
 public:
 	struct sockaddr_in addr;
 
-	u_int16_t checksum;
 	u_int16_t len;
 	u_int32_t seqno;
-
-	bool is_ACK;
 	string data;
 
+	long int send_time;
+	Packet(struct sockaddr_in toAddr, u_int32_t seq_no,
+			string messg, u_int16_t datalen, long int sendTime) {
+		addr = toAddr;
+		len = datalen;
+		seqno = seq_no;
+		data = messg;
+		send_time = sendTime;
+	}
 	Packet() :
 			addr { 0 } {
 		seqno = 0;
 		len = 0;
-		checksum = 0;
-		is_ACK = false;
+		send_time = 0;
 		data = "";
 	}
 

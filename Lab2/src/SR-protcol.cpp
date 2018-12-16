@@ -12,16 +12,73 @@
 #include <exception>
 #include <sys/time.h>
 #include <algorithm>
+#include <math.h>
 #include "SR-protocol.h"
 
+/* c/c++ % computes remainder, not modulo, the formula below
+ returns modulo. */
+#define MOD(x, m) (x % m + m) % m
 #define MIN(a, b) \
     ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mux = PTHREAD_MUTEX_INITIALIZER;
+u_int32_t add(u_int16_t seqno, u_int16_t mesLen,
+		const char buff[]) {
+	u_int16_t padd = mesLen % 2;
+	u_int16_t word16;
+	u_int32_t sum = 0;
 
+	// cast data from char to unsigned short
+	u_int16_t mes[mesLen + padd];
+	for (unsigned i = 0; i < mesLen; i++) {
+		mes[i] = buff[i];
+	}
+	if (padd)
+		mes[mesLen] = 0;
+
+	// make 16 bit words out of every two adjacent 8 bit words and
+	// calculate the sum of all 16 bit words
+	for (unsigned i = 0; i < mesLen + padd; i = i + 2) {
+		word16 = ((mes[i] << 8) & 0xFF00) + (mes[i + 1] & 0xFF);
+		sum += (u_int32_t) word16;
+	}
+	// the seq number and the length of the data
+	sum += seqno + mesLen;
+
+	return sum;
+}
+
+u_int16_t carryComp(u_int32_t sum) {
+	// keep only the last 16 bits of the 32 bit calculated sum and add the carries
+	while (sum >> 16)
+		sum = (sum & 0xFFFF) + (sum >> 16);
+	// Take the one's complement of sum
+	sum = ~sum;
+
+	return sum;
+}
+
+u_int16_t getChecksum(u_int16_t seqno, u_int16_t mesLen,
+		const char buff[]) {
+	u_int32_t sum = add(seqno, mesLen, buff);
+
+	return carryComp(sum);
+}
+
+bool isValid(u_int16_t seqno, u_int16_t mesLen,
+		const char buff[], u_int16_t checksum) {
+	u_int32_t sum = add(seqno, mesLen, buff);
+	sum += checksum;
+
+	return !carryComp(sum);
+}
+
+long int nowTime() {
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	return tp.tv_sec /*+ (1.0 / 1000000) * tp.tv_usec*/;
+}
 string print(vector<Packet> v) {
 	string s = "";
 	for (int i = 0; i < v.size(); i++) {
@@ -57,73 +114,87 @@ int SRProtocol::sendDatagram(const char *p, int len, int seqno,
 	pTemp = new char[BUF_SIZE];
 	stringstream ss;
 	ss << seqno << " ";
-	sprintf(pTemp, "%d %s", seqno, p);
-	pthread_mutex_lock(&connection_lock);
-	cout << "\033[1;34mseding packet no" << seqno << " size="
-			<< (ss.str().size() + len) << "\033[0m" /*<< p
-			 << "\n================"*/<< endl;
-	int sendsize = c->send(pTemp,
-			MIN(BUF_SIZE, ss.str().size() + len), toAddr);
-	pthread_mutex_unlock(&connection_lock);
-	return sendsize;
+	sprintf(pTemp, "%d %d %s", seqno, getChecksum(seqno, len, p),
+			p);
+	float ran = (float) (rand() % 100) / 100;
+	if (ran <= error) {
+		cout << "packet no" << seqno << " is lost" << endl;
+		return -1;
+	} else {
+		cout << "\033[1;34mseding packet no" << seqno << " size="
+				<< (ss.str().size() + len) << "\033[0m" << endl;
+		return c->send(pTemp,
+				MIN(BUF_SIZE, ss.str().size() + len), toAddr);
+	}
 }
 
 int SRProtocol::sendRequest(char *line,
 		struct sockaddr_in toAddr) {
-	int sendsize = -1;
 	for (;;) {
-		sendsize = sendDatagram(line, strlen(line), -1, toAddr);
+		sendDatagram(line, strlen(line), -1, toAddr);
 		if (acceptAcks()) {
 			break;
 		}
 	}
-	return sendsize;
+	return filesize;
 }
 
-void *sendPacket(void *arg) {
-	pthread_detach(pthread_self());
-	ThreadPacketData thdata = *((ThreadPacketData *) arg);
-	cout << "start thread " << thdata.seq_no << endl;
-	pthread_cond_signal(&cond);
-	int sendsize = -1;
-//	(*thdata.sh_mem)[thdata.hash][thdata.seq_no] = Packet();
-//	(*thdata.sh_mem)[thdata.hash][thdata.seq_no].data.append(
-//			thdata.data);
-//	(*thdata.sh_mem)[thdata.hash][thdata.seq_no].seqno =
-//			thdata.seq_no;
-	for (;;) {
-		struct timeval tp;
-		gettimeofday(&tp, NULL);
-		long int s = tp.tv_sec;
-		float ran = (float) (rand() % 100) / 100;
-		if (ran <= thdata.p->error) {
-//			cout << "packet no" << thdata.seq_no << " is lost"
-//					<< endl;
-		} else {
-			sendsize = thdata.p->sendDatagram(
-					thdata.data.c_str(), thdata.datalen,
-					thdata.seq_no, thdata.addr);
-		}
-		bool acked = false;
-		while (!acked) {
-			struct timeval tp;
-			gettimeofday(&tp, NULL);
-			long int nows = tp.tv_sec;
-			if ((*thdata.sh_mem)[thdata.hash][thdata.seq_no]/*.is_ACK*/) { // acked
-				thdata.p->addACK(thdata.seq_no);
-				acked = true;
+void SRProtocol::addACK(int seq_no) {
+	if (seq_no < send_base)
+		return;
+	std::vector<int>::iterator it;
+	it = find(ACKs.begin(), ACKs.end(), seq_no);
+	if (it != ACKs.end()) {
+		return;
+	}
+	ACKs.push_back(seq_no);
+	sort(ACKs.begin(), ACKs.end());
+//	cout << "addACK " << seq_no << " base " << send_base
+//			<< " old:" << print(ACKs) << endl;
+	if (seq_no == send_base) {
+		bool found = false;
+		for (unsigned i = 0; i < ACKs.size(); i++) {
+			if (ACKs[i] - send_base >= 1) {
+				ACKs.erase(ACKs.begin(), ACKs.begin() + i);
+				found = true;
 				break;
 			}
-			if (nows - s >= 1) {
-				break;
-			}
+			num_active--;
+			send_base++;
 		}
-		if (acked) {
-			break;
+		if (!found) {
+			send_base = ACKs.back() + 1;
+			ACKs.clear();
 		}
 	}
-	cout << "exit thread " << thdata.seq_no << endl;
-	return NULL;
+//	cout << " newbase " << send_base << " new:" << print(ACKs)
+//			<< endl;
+}
+
+bool SRProtocol::checktimeout(map<int, bool> ack_mem) {
+	bool found = false;
+	vector<int> acked;
+	for (map<int, Packet>::iterator it = allPackets.begin();
+			it != allPackets.end(); it++) {
+		if (ack_mem[it->first]) { // packet i is  ACKed.
+			addACK(it->first);
+			acked.push_back(it->first);
+		} else { // packet i is timeout
+			if (nowTime() - it->second.send_time >= timeout) {
+				it->second.send_time = nowTime();
+				sendDatagram(it->second.data.c_str(),
+						it->second.len, it->first,
+						it->second.addr);
+			}
+			found = true;
+		}
+	}
+	for (vector<int>::iterator it = acked.begin();
+			it != acked.end(); it++) {
+		allPackets.erase(*it);
+	}
+	acked.clear();
+	return found;
 }
 
 void SRProtocol::sendFile(string fileName, void* arg) {
@@ -133,79 +204,46 @@ void SRProtocol::sendFile(string fileName, void* arg) {
 		char *memblock;
 		memblock = new char[MAX_DATAGRAM_SIZE];
 		int size = myfile.tellg();
+		packNo = ceil(size / MAX_DATAGRAM_SIZE);
 		myfile.seekg(0, ios::beg);
+		cout << "server will send " << packNo << "packets"
+				<< endl;
 		int totalSize = 0;
 		srand(carg.p->seed);
 		while (myfile) {
-			pthread_mutex_lock(&base_lock);
-			if (next_seq_num - send_base >= windowsize) { // window is full cannot send a new packet.
-//				cout << "\033[1;33m waiting " << next_seq_num
-//						<< " base " << send_base << "\033[0m"
-//						<< endl;
-				pthread_mutex_unlock(&base_lock);
-				sleep(1); // prevent this thread from holding the lock so other can have it.
+
+			checktimeout((*carg.sh_mem)[carg.hash]);
+
+			if (num_active >= windowsize) { // window is full cannot send a new packet.
 				continue;
 			}
-			pthread_mutex_unlock(&base_lock);
+
 			memset(memblock, 0, MAX_DATAGRAM_SIZE);
 			myfile.read(memblock, MAX_DATAGRAM_SIZE);
 			int i = myfile.gcount();
 			totalSize += i;
+
 			if (i) {
-				ThreadPacketData ptthdata;
-				ptthdata.data.append(memblock);
-				ptthdata.hash.append(carg.hash);
-				ptthdata.addr = carg.addr;
-				ptthdata.sh_mem = carg.sh_mem;
-//				ptthdata.thmem = carg.thmem;
-				ptthdata.datalen = i;
-				ptthdata.seq_no = next_seq_num;
-				ptthdata.p = carg.p;
-				pthread_t sending_thread;
-				pthread_create(&sending_thread, NULL, sendPacket,
-						(void*) &ptthdata);
-				pthread_cond_wait(&cond, &mux);
-				cout << "\033[1;31mcreated th " << next_seq_num
-						<< " base " << send_base << "\033[0m"
-						<< endl;
+				num_active++;
+				(*carg.sh_mem)[carg.hash][next_seq_num] = false;
+				Packet p(carg.addr, next_seq_num, memblock, i,
+						nowTime());
+				allPackets[next_seq_num] = p;
+				sendDatagram(memblock, i, next_seq_num,
+						carg.addr);
+//				next_seq_num = MOD((next_seq_num + 1),
+//						windowsize);
 				next_seq_num++;
 			}
 		}
+		while (checktimeout((*carg.sh_mem)[carg.hash])) {
+		}
+		allPackets.clear();
 		cout << "finish reading file " << totalSize << endl;
 		myfile.close();
 	} else {
 		cout << "file not found" << endl;
 	}
-}
-
-void SRProtocol::addACK(int seq_no) {
-	pthread_mutex_lock(&base_lock);
-	std::vector<int>::iterator it;
-	it = find(ACKs.begin(), ACKs.end(), seq_no);
-	if (it == ACKs.end()) {
-		ACKs.push_back(seq_no);
-		sort(ACKs.begin(), ACKs.end());
-	}
-	cout << "addACK " << seq_no << " base " << send_base
-			<< " old:" << print(ACKs) << endl;
-	if (seq_no == send_base) {
-		bool found = false;
-		for (unsigned i = 0; i < ACKs.size(); i++) {
-			if (ACKs[i] - send_base >= 1) {
-				ACKs.erase(ACKs.begin(), ACKs.begin() + i);
-				found = true;
-				break;
-			}
-			send_base++;
-		}
-		if (!found) {
-			send_base = ACKs.back() + 1;
-			ACKs.clear();
-		}
-	}
-	cout << " newbase " << send_base << " new:" << print(ACKs)
-			<< endl;
-	pthread_mutex_unlock(&base_lock);
 }
 
 bool SRProtocol::acceptAcks() {
@@ -260,15 +298,31 @@ char *SRProtocol::receiveMessage(string fileName) {
 	int len = c->blocking_receive(buf);
 	while (len != -1) {
 		istringstream ss(buf);
-		int ackno;
-		ss >> ackno;
+		int ackno, checksum;
+		ss >> ackno >> checksum;
+
 		stringstream ssack;
-		ssack << ackno << " ";
+		ssack << ackno << " " << checksum << " ";
 		string mes = buf;
-		string data = mes.substr(mes.find(' ') + 1);
+		size_t pos = mes.find(" ");
+		if (pos == std::string::npos)
+			continue; //shouldn't happen.
+		pos = mes.find(" ", pos + 1);
+		if (pos == std::string::npos)
+			continue;//shouldn't happen.
+
+		string data = mes.substr(pos, std::string::npos);
+
+		bool valid = isValid(ackno, len - ssack.str().size(),
+				mes.c_str(), checksum);
+		if (!valid) {
+			cout << "\033[1;31mreceived corrupted packet no"
+					<< ackno << "\033[0m" << endl;
+		}
+
 		cout << "\033[1;34mreceived packet no" << ackno
-				<< " size=" << len << " datasize=" << data.size()
-				<< "\033[0m"
+				<< " size=" << len << " datasize="
+				<< len - ssack.str().size() << "\033[0m"
 				/*<< "\n"<<data<<"=============="*/<< endl;
 		if (ackno < recv_base) {
 //			cout << "\033[1;31mreceived packet no" << ackno
