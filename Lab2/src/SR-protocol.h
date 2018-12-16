@@ -10,19 +10,24 @@
 
 #include "common.h"
 #include <vector>
-
+#include <queue>
 /* Implementation of the Stop-And-Wait Protocol, The server sends a single datagram, and blocks until an acknowledgment from the client is
  received (or until a timeout expires). */
 class SRProtocol: public Protocol {
 private:
 //    char buffer[BUF_SIZE]; //buffer used for incoming and outgoing messages
 	int next_seq_num = 0, filesize = -1, send_base = 0,
-			recv_base = 0, num_active = 0, packNo = 0;
+			recv_base = 0, num_active = 0, packNo = 0, losscnt =
+					0;
+	int state = 1; // slow start >> 1, congestion avoidance >> 2, fast recovery >> 3
+	float ssthresh = 0;
 	long int timeout = 1;
+	queue<int> threeACKpck;
 	vector<int> ACKs;
-	map<int,Packet> allPackets;
+	map<int, Packet> allPackets;
 	vector<Packet> window;
 
+	void readCongList();
 	bool checktimeout(map<int, bool> ack_mem);
 	/* listen for an ACK, returns true if the socket does not timeout */
 	bool acceptAcks();
@@ -30,11 +35,8 @@ private:
 	/* helper function to set timeout to 5 seconds before listening for an ACK */
 	bool listenForAck();
 
-	pthread_mutex_t base_lock;
-	pthread_mutex_t connection_lock;
-
 public:
-	int windowsize = 1;
+	float windowsize = 1;
 	SRProtocol();
 
 	virtual int sendRequest(char *line,

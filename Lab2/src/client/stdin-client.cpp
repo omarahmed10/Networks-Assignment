@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 	ClientUDPConnection c(client_port, serv_port, ip.c_str());
 	// GoBackNProtocol p;
 	// StopAndWaitProtocol p;
-	SRProtocol p;
+	GoBackNProtocol p;
 	p.windowsize = window;
 
 	StdinClient client(&p, &c);

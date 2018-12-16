@@ -23,113 +23,40 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-u_int32_t add(u_int16_t seqno, u_int16_t mesLen,
-		const char buff[]) {
-	u_int16_t padd = mesLen % 2;
-	u_int16_t word16;
-	u_int32_t sum = 0;
-
-	// cast data from char to unsigned short
-	u_int16_t mes[mesLen + padd];
-	for (unsigned i = 0; i < mesLen; i++) {
-		mes[i] = buff[i];
+void SRProtocol::readCongList() {
+	ifstream infile("congestion.in");
+	while (infile) {
+		int n;
+		infile >> n;
+		threeACKpck.push(n);
 	}
-	if (padd)
-		mes[mesLen] = 0;
-
-	// make 16 bit words out of every two adjacent 8 bit words and
-	// calculate the sum of all 16 bit words
-	for (unsigned i = 0; i < mesLen + padd; i = i + 2) {
-		word16 = ((mes[i] << 8) & 0xFF00) + (mes[i + 1] & 0xFF);
-		sum += (u_int32_t) word16;
-	}
-	// the seq number and the length of the data
-	sum += seqno + mesLen;
-
-	return sum;
-}
-
-u_int16_t carryComp(u_int32_t sum) {
-	// keep only the last 16 bits of the 32 bit calculated sum and add the carries
-	while (sum >> 16)
-		sum = (sum & 0xFFFF) + (sum >> 16);
-	// Take the one's complement of sum
-	sum = ~sum;
-
-	return sum;
-}
-
-u_int16_t getChecksum(u_int16_t seqno, u_int16_t mesLen,
-		const char buff[]) {
-	u_int32_t sum = add(seqno, mesLen, buff);
-
-	return carryComp(sum);
-}
-
-bool isValid(u_int16_t seqno, u_int16_t mesLen,
-		const char buff[], u_int16_t checksum) {
-	u_int32_t sum = add(seqno, mesLen, buff);
-	sum += checksum;
-
-	return !carryComp(sum);
-}
-
-long int nowTime() {
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	return tp.tv_sec /*+ (1.0 / 1000000) * tp.tv_usec*/;
-}
-string print(vector<Packet> v) {
-	string s = "";
-	for (int i = 0; i < v.size(); i++) {
-		s.append(NumberToString<int>(v[i].seqno));
-		s.append(",");
-	}
-	return s;
-}
-string print(vector<int> v) {
-	string s = "";
-	for (int i = 0; i < v.size(); i++) {
-		s.append(NumberToString<int>(v[i]));
-		s.append(",");
-	}
-	return s;
 }
 
 SRProtocol::SRProtocol() {
 	c = NULL;
-	if (pthread_mutex_init(&base_lock, NULL) != 0) {
-		printf("\n mutex init has failed\n");
-		exit(-1);
-	}
-	if (pthread_mutex_init(&connection_lock, NULL) != 0) {
-		printf("\n mutex init has failed\n");
-		exit(-1);
-	}
 }
 
 int SRProtocol::sendDatagram(const char *p, int len, int seqno,
 		struct sockaddr_in toAddr) {
+	int checksum = getChecksum(seqno, len, p);
 	char *pTemp;
 	pTemp = new char[BUF_SIZE];
 	stringstream ss;
-	ss << seqno << " ";
-	sprintf(pTemp, "%d %d %s", seqno, getChecksum(seqno, len, p),
-			p);
+	ss << seqno << " " << checksum << " ";
+	sprintf(pTemp, "%d %d %s", seqno, checksum, p);
 	float ran = (float) (rand() % 100) / 100;
 	if (ran <= error) {
 		cout << "packet no" << seqno << " is lost" << endl;
 		return -1;
 	} else {
 		cout << "\033[1;34mseding packet no" << seqno << " size="
-				<< (ss.str().size() + len) << "\033[0m" << endl;
-		return c->send(pTemp,
-				MIN(BUF_SIZE, ss.str().size() + len), toAddr);
+				<< (ss.str().size() + len) << " windowsize " << windowsize
+				<< "\033[0m" << endl;
+		return c->send(pTemp, MIN(BUF_SIZE, ss.str().size() + len), toAddr);
 	}
 }
 
-int SRProtocol::sendRequest(char *line,
-		struct sockaddr_in toAddr) {
+int SRProtocol::sendRequest(char *line, struct sockaddr_in toAddr) {
 	for (;;) {
 		sendDatagram(line, strlen(line), -1, toAddr);
 		if (acceptAcks()) {
@@ -142,6 +69,7 @@ int SRProtocol::sendRequest(char *line,
 void SRProtocol::addACK(int seq_no) {
 	if (seq_no < send_base)
 		return;
+
 	std::vector<int>::iterator it;
 	it = find(ACKs.begin(), ACKs.end(), seq_no);
 	if (it != ACKs.end()) {
@@ -167,6 +95,21 @@ void SRProtocol::addACK(int seq_no) {
 			ACKs.clear();
 		}
 	}
+	if (!threeACKpck.empty() && send_base == threeACKpck.front()) { // fast recovery
+		cout << "\033[1;35mfast recovery\033[0m" << endl;
+		threeACKpck.pop();
+		ssthresh = windowsize / 2;
+		windowsize = ssthresh + 3;
+	} else if (windowsize >= ssthresh) { // congestion avoidance
+		cout << "\033[1;33mcongestion avoidance\033[0m" << endl;
+		windowsize += (1.0 / windowsize);
+	} else { // slow start.
+		cout << "\033[1;33mslow start\033[0m" << endl;
+		windowsize++;
+		if (windowsize > ssthresh)
+			windowsize = ssthresh;
+	}
+
 //	cout << " newbase " << send_base << " new:" << print(ACKs)
 //			<< endl;
 }
@@ -181,16 +124,19 @@ bool SRProtocol::checktimeout(map<int, bool> ack_mem) {
 			acked.push_back(it->first);
 		} else { // packet i is timeout
 			if (nowTime() - it->second.send_time >= timeout) {
+				losscnt++;
+				ssthresh = windowsize / 2;
+				windowsize = 1;
+				cout << "\033[1;31mTIME OUT for " << it->first << " ssthresh "
+						<< ssthresh << "\033[0m" << endl;
 				it->second.send_time = nowTime();
-				sendDatagram(it->second.data.c_str(),
-						it->second.len, it->first,
+				sendDatagram(it->second.data.c_str(), it->second.len, it->first,
 						it->second.addr);
 			}
 			found = true;
 		}
 	}
-	for (vector<int>::iterator it = acked.begin();
-			it != acked.end(); it++) {
+	for (vector<int>::iterator it = acked.begin(); it != acked.end(); it++) {
 		allPackets.erase(*it);
 	}
 	acked.clear();
@@ -199,6 +145,7 @@ bool SRProtocol::checktimeout(map<int, bool> ack_mem) {
 
 void SRProtocol::sendFile(string fileName, void* arg) {
 	ThreadClientData carg = *((ThreadClientData *) arg);
+	readCongList();
 	ifstream myfile(fileName, ios::in | ios::binary | ios::ate);
 	if (myfile.is_open()) {
 		char *memblock;
@@ -206,15 +153,16 @@ void SRProtocol::sendFile(string fileName, void* arg) {
 		int size = myfile.tellg();
 		packNo = ceil(size / MAX_DATAGRAM_SIZE);
 		myfile.seekg(0, ios::beg);
-		cout << "server will send " << packNo << "packets"
-				<< endl;
+		cout << "server will send " << packNo << "packets" << endl;
 		int totalSize = 0;
+		ssthresh = windowsize;
+		windowsize = 1.0;
 		srand(carg.p->seed);
 		while (myfile) {
 
 			checktimeout((*carg.sh_mem)[carg.hash]);
 
-			if (num_active >= windowsize) { // window is full cannot send a new packet.
+			if (num_active >= trunc(windowsize)) { // window is full cannot send a new packet.
 				continue;
 			}
 
@@ -226,11 +174,9 @@ void SRProtocol::sendFile(string fileName, void* arg) {
 			if (i) {
 				num_active++;
 				(*carg.sh_mem)[carg.hash][next_seq_num] = false;
-				Packet p(carg.addr, next_seq_num, memblock, i,
-						nowTime());
+				Packet p(carg.addr, next_seq_num, memblock, i, nowTime());
 				allPackets[next_seq_num] = p;
-				sendDatagram(memblock, i, next_seq_num,
-						carg.addr);
+				sendDatagram(memblock, i, next_seq_num, carg.addr);
 //				next_seq_num = MOD((next_seq_num + 1),
 //						windowsize);
 				next_seq_num++;
@@ -309,25 +255,21 @@ char *SRProtocol::receiveMessage(string fileName) {
 			continue; //shouldn't happen.
 		pos = mes.find(" ", pos + 1);
 		if (pos == std::string::npos)
-			continue;//shouldn't happen.
+			continue; //shouldn't happen.
 
-		string data = mes.substr(pos, std::string::npos);
+		string data = mes.substr(pos + 1, std::string::npos);
 
-		bool valid = isValid(ackno, len - ssack.str().size(),
-				mes.c_str(), checksum);
+		bool valid = isValid(ackno, len - ssack.str().size(), data.c_str(),
+				checksum);
 		if (!valid) {
-			cout << "\033[1;31mreceived corrupted packet no"
-					<< ackno << "\033[0m" << endl;
+			cout << "\033[1;31mreceived corrupted packet no" << ackno
+					<< "\033[0m" << endl;
 		}
 
-		cout << "\033[1;34mreceived packet no" << ackno
-				<< " size=" << len << " datasize="
-				<< len - ssack.str().size() << "\033[0m"
-				/*<< "\n"<<data<<"=============="*/<< endl;
+		cout << "\033[1;34mreceived packet no" << ackno << " size=" << len
+				<< " datasize=" << len - ssack.str().size() << "\033[0m"
+				<< endl;
 		if (ackno < recv_base) {
-//			cout << "\033[1;31mreceived packet no" << ackno
-//					<< " size=" << len << " datasize="
-//					<< data.size() << "\033[0m" << endl;
 			continue;
 		}
 		if (ackno - recv_base < windowsize) {
@@ -347,23 +289,19 @@ char *SRProtocol::receiveMessage(string fileName) {
 			sort(window.begin(), window.end(), sortA);
 			if (recv_base == ackno) {
 				bool found = false;
-				cout << "current window " << recv_base << ":"
-						<< window.size() << ":" << print(window)
+				cout << "current window " << recv_base << ":" << window.size()
 						<< " writing :";
 				for (unsigned i = 0; i < window.size(); i++) {
 					if (window[i].seqno - recv_base < 1) {
-						fwrite(window[i].data.c_str(),
-								sizeof(char), window[i].len,
-								file);
+						fwrite(window[i].data.c_str(), sizeof(char),
+								window[i].len, file);
 						filesize -= window[i].len;
-						cout << window[i].seqno << " size="
-								<< window[i].len << " actual="
-								<< window[i].data.size() << ", ";
+						cout << window[i].seqno << " size=" << window[i].len
+								<< " actual=" << window[i].data.size() << ", ";
 						recv_base = window[i].seqno + 1;
 					} else {
 						found = true;
-						window.erase(window.begin(),
-								window.begin() + i);
+						window.erase(window.begin(), window.begin() + i);
 						break;
 					}
 				}

@@ -90,7 +90,7 @@ void StdoutServer::start() {
 			thdata.fileName.append(file);
 			thdata.hash.append(hash);
 			thdata.addr = cliaddr;
-			SRProtocol *sr = new SRProtocol();
+			GoBackNProtocol *sr = new GoBackNProtocol();
 			sr->seed = p->seed;
 			sr->error = p->error;
 			sr->setConnection(c);
@@ -103,7 +103,6 @@ void StdoutServer::start() {
 			int ackno = packetNo;
 			//update the shared memory between processes
 			if (sh_mem[hash].count(packetNo) > 0) {
-				cout << "recv ACK " << ackno << endl;
 				sh_mem[hash][ackno]/*.is_ACK */= true;
 			}
 		}
@@ -130,7 +129,7 @@ int main(int argc, char **argv) {
 	ServerUDPConnection c(serv_port);
 	// GoBackNProtocol p;
 //	StopAndWaitProtocol p;
-	SRProtocol p;
+	GoBackNProtocol p;
 	p.seed = seed;
 	p.error = error;
 	StdoutServer server(&p, &c);

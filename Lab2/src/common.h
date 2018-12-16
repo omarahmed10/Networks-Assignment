@@ -8,6 +8,7 @@
 #include <sstream>
 #include <map>
 #include <string>
+#include <sys/time.h>
 
 #define DEFAULT_PORT 12346
 #define BUF_SIZE 512
@@ -27,8 +28,8 @@ public:
 	string data;
 
 	long int send_time;
-	Packet(struct sockaddr_in toAddr, u_int32_t seq_no,
-			string messg, u_int16_t datalen, long int sendTime) {
+	Packet(struct sockaddr_in toAddr, u_int32_t seq_no, string messg,
+			u_int16_t datalen, long int sendTime) {
 		addr = toAddr;
 		len = datalen;
 		seqno = seq_no;
@@ -95,12 +96,10 @@ public:
 	}
 	;
 
-	virtual int sendRequest(char *line,
-			struct sockaddr_in toAddr) = 0;
+	virtual int sendRequest(char *line, struct sockaddr_in toAddr) = 0;
 
 	/* send an ACK containing sequence number seqn */
-	virtual void sendAck(int ackno,
-			struct sockaddr_in toAddr) = 0;
+	virtual void sendAck(int ackno, struct sockaddr_in toAddr) = 0;
 
 	/* send a message of size t starting at the memory address pointed to by line
 	 through the implememted protocol */
@@ -118,7 +117,62 @@ public:
 	virtual ~Protocol() {
 	}
 	;
+	u_int32_t add(u_int16_t seqno, u_int16_t mesLen, const char buff[]) {
+		u_int16_t padd = mesLen % 2;
+		u_int16_t word16;
+		u_int32_t sum = 0;
 
+		// cast data from char to unsigned short
+		u_int16_t mes[mesLen + padd];
+		for (unsigned i = 0; i < mesLen; i++) {
+			mes[i] = buff[i];
+		}
+		if (padd)
+			mes[mesLen] = 0;
+
+		// make 16 bit words out of every two adjacent 8 bit words and
+		// calculate the sum of all 16 bit words
+		for (unsigned i = 0; i < mesLen + padd; i = i + 2) {
+			word16 = ((mes[i] << 8) & 0xFF00) + (mes[i + 1] & 0xFF);
+			sum += (u_int32_t) word16;
+		}
+		// the seq number and the length of the data
+		sum += seqno + mesLen;
+
+		return sum;
+	}
+
+	u_int16_t carryComp(u_int32_t sum) {
+		// keep only the last 16 bits of the 32 bit calculated sum and add the carries
+		while (sum >> 16)
+			sum = (sum & 0xFFFF) + (sum >> 16);
+		// Take the one's complement of sum
+		sum = ~sum;
+
+		return sum;
+	}
+
+	u_int16_t getChecksum(u_int16_t seqno, u_int16_t mesLen,
+			const char buff[]) {
+		u_int32_t sum = add(seqno, mesLen, buff);
+
+		return carryComp(sum);
+	}
+
+	bool isValid(u_int16_t seqno, u_int16_t mesLen, const char buff[],
+			u_int16_t checksum) {
+		u_int32_t sum = add(seqno, mesLen, buff);
+
+		sum += checksum;
+
+		return !carryComp(sum);
+	}
+
+	long int nowTime() {
+		struct timeval tp;
+		gettimeofday(&tp, NULL);
+		return tp.tv_sec /*+ (1.0 / 1000000) * tp.tv_usec*/;
+	}
 };
 
 template<typename T>
